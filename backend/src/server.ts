@@ -1,28 +1,51 @@
+import 'dotenv/config';
 import { Server } from 'http';
 import { createApp } from './app';
 import logger from './utils/logger';
+import { testConnection, closePool } from './db/connection';
+import { initializeDatabase } from './db/schema';
 
 const PORT = process.env.PORT || 3000;
 const SHUTDOWN_TIMEOUT = parseInt(process.env.SHUTDOWN_TIMEOUT || '10000');
 
-const app = createApp();
+let server: Server;
 
-const server: Server = app.listen(PORT, () => {
-  logger.info(`Server is running on http://localhost:${PORT}`);
-  logger.info(`API endpoints available at http://localhost:${PORT}/api/v1`);
-  logger.info(`Health check available at http://localhost:${PORT}/api/v1/health`);
+async function startServer() {
+  // Test database connection and initialize schema
+  const dbConnected = await testConnection();
+  if (!dbConnected) {
+    logger.error('Failed to connect to database. Exiting...');
+    process.exit(1);
+  }
+
+  await initializeDatabase();
+
+  const app = createApp();
+
+  server = app.listen(PORT, () => {
+    logger.info(`Server is running on http://localhost:${PORT}`);
+    logger.info(`API endpoints available at http://localhost:${PORT}/api/v1`);
+    logger.info(`Health check available at http://localhost:${PORT}/api/v1/health`);
+  });
+}
+
+startServer().catch((error) => {
+  logger.error('Failed to start server', { error: error.message });
+  process.exit(1);
 });
 
 /**
  * Graceful shutdown handler
  * Closes server and allows existing connections to complete
  */
-function gracefulShutdown(signal: string) {
+async function gracefulShutdown(signal: string) {
   logger.info(`${signal} received. Starting graceful shutdown...`);
 
   // Stop accepting new connections
-  server.close(() => {
-    logger.info('HTTP server closed. All connections completed.');
+  server.close(async () => {
+    logger.info('HTTP server closed.');
+    await closePool();
+    logger.info('Database pool closed. All connections completed.');
     process.exit(0);
   });
 

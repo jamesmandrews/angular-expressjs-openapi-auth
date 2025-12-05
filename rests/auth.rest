@@ -3,7 +3,7 @@
 @contentType = application/json
 
 # After login, copy the accessToken here for authenticated requests
-@accessToken = YOUR_TOKEN_HERE
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3NTVkZTcyYy1mNDE3LTQwZTgtOWZiNC1jOTU2MWVlMDY3ZTIiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjQ5NzMwODMsImV4cCI6MTc2NDk3Mzk4M30.bogh02_NyLME_ec8ZaEAG5kdblzgiznD0v8wW_BHAXY
 
 ### ===========================================
 ### Authentication Endpoints

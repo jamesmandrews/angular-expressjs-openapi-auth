@@ -1,0 +1,124 @@
+### Variables
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+# After login, copy the accessToken here for authenticated requests
+@accessToken = YOUR_TOKEN_HERE
+
+### ===========================================
+### Authentication Endpoints
+### ===========================================
+
+### Register a new user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+
+### Register - minimal (just email and password)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "minimal@example.com",
+  "password": "SecurePass123"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123"
+}
+
+### Get current user profile (requires auth)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh access token (requires valid token)
+POST {{baseUrl}}/auth/refresh
+Authorization: Bearer {{accessToken}}
+
+### Logout (requires auth)
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+
+### ===========================================
+### Password Reset Flow
+### ===========================================
+
+### Request password reset email
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com"
+}
+
+### Reset password with token (get token from email)
+POST {{baseUrl}}/auth/reset-password
+Content-Type: {{contentType}}
+
+{
+  "token": "RESET_TOKEN_FROM_EMAIL",
+  "password": "NewSecurePass456"
+}
+
+### ===========================================
+### Error Cases (for testing)
+### ===========================================
+
+### Register - duplicate email (should return 409)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com",
+  "password": "AnotherPass123"
+}
+
+### Register - invalid email format (should return 422)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "not-an-email",
+  "password": "SecurePass123"
+}
+
+### Register - password too short (should return 422)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "short"
+}
+
+### Login - wrong password (should return 401)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "user@example.com",
+  "password": "WrongPassword123"
+}
+
+### Login - non-existent user (should return 401)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "nonexistent@example.com",
+  "password": "SecurePass123"
+}
+
+### Get profile without token (should return 401)
+GET {{baseUrl}}/auth/me

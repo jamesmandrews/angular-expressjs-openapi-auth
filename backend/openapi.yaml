@@ -1,0 +1,576 @@
+openapi: 3.0.3
+info:
+  title: Authentication API
+  description: REST API with user authentication, registration, and password reset
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://api.example.com/v1
+    description: Production server
+
+tags:
+  - name: auth
+    description: Authentication and user management
+  - name: health
+    description: Health check operations
+
+paths:
+  # ============================================
+  # Authentication Endpoints
+  # ============================================
+  /auth/register:
+    post:
+      tags:
+        - auth
+      summary: Register a new user
+      description: Creates a new user account with email and password
+      operationId: authRegister
+      x-eov-operation-handler: auth/register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: EMAIL_EXISTS
+                  message: A user with this email address already exists
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login user
+      description: Authenticates a user and returns access and refresh tokens
+      operationId: authLogin
+      x-eov-operation-handler: auth/login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Invalid email or password
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Logout user
+      description: |
+        Invalidates the current access token by adding it to a blacklist.
+        The client should also discard the token from memory.
+      operationId: authLogout
+      x-eov-operation-handler: auth/logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: Refresh access token
+      description: |
+        Uses a valid (non-expired) access token to obtain a new access token.
+        Call this endpoint before the current token expires to maintain the session.
+        Recommended: refresh when 80% of token lifetime has elapsed.
+      operationId: authRefresh
+      x-eov-operation-handler: auth/refresh
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully refreshed token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - auth
+      summary: Request password reset
+      description: Sends a password reset email to the user. Always returns success to prevent email enumeration.
+      operationId: authForgotPassword
+      x-eov-operation-handler: auth/forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Password reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: If an account with that email exists, a password reset link has been sent
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Too many password reset requests. Please try again later.
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - auth
+      summary: Reset password
+      description: Resets the user's password using a valid reset token
+      operationId: authResetPassword
+      x-eov-operation-handler: auth/resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password successfully reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password has been successfully reset
+        '400':
+          description: Invalid or expired reset token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_RESET_TOKEN
+                  message: The password reset token is invalid or has expired
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/me:
+    get:
+      tags:
+        - auth
+      summary: Get current user
+      description: Returns the profile of the currently authenticated user
+      operationId: authMe
+      x-eov-operation-handler: auth/me
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================
+  # Health Check Endpoints
+  # ============================================
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check endpoint
+      description: Returns server health status and basic metrics
+      operationId: healthCheck
+      x-eov-operation-handler: healthCheck
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: 2025-11-12T10:30:00Z
+                  uptime:
+                    type: number
+                    description: Server uptime in seconds
+                    example: 3600
+                  environment:
+                    type: string
+                    example: development
+                  memory:
+                    type: object
+                    properties:
+                      used:
+                        type: number
+                        description: Memory used in MB
+                      total:
+                        type: number
+                        description: Total memory in MB
+                      unit:
+                        type: string
+                        example: MB
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token authentication
+
+  schemas:
+    # ============================================
+    # Authentication Schemas
+    # ============================================
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: user@example.com
+        firstName:
+          type: string
+          description: User's first name
+          minLength: 1
+          maxLength: 100
+          example: John
+        lastName:
+          type: string
+          description: User's last name
+          minLength: 1
+          maxLength: 100
+          example: Doe
+        emailVerified:
+          type: boolean
+          description: Whether the user's email has been verified
+          default: false
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was created
+          example: 2025-11-12T08:30:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was last updated
+          example: 2025-11-12T09:15:00Z
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          maxLength: 255
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          description: User's password (min 8 chars, must contain uppercase, lowercase, and number)
+          minLength: 8
+          maxLength: 128
+          example: SecurePass123
+        firstName:
+          type: string
+          description: User's first name
+          minLength: 1
+          maxLength: 100
+          example: John
+        lastName:
+          type: string
+          description: User's last name
+          minLength: 1
+          maxLength: 100
+          example: Doe
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          description: User's password
+          example: SecurePass123
+
+    AuthResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - user
+            - tokens
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            tokens:
+              $ref: '#/components/schemas/TokenResponse'
+
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token for API authentication
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          description: Access token expiration time in seconds (configured via JWT_ACCESS_TOKEN_EXPIRY env var)
+          example: 900
+        tokenType:
+          type: string
+          description: Type of token
+          default: Bearer
+          example: Bearer
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address of the account to reset
+          example: user@example.com
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+          description: Password reset token received via email
+          example: abc123def456...
+        password:
+          type: string
+          format: password
+          description: New password (min 8 chars, must contain uppercase, lowercase, and number)
+          minLength: 8
+          maxLength: 128
+          example: NewSecurePass456
+
+    # ============================================
+    # Error Schema
+    # ============================================
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: RESOURCE_NOT_FOUND
+            message:
+              type: string
+              description: Human-readable error message
+              example: The requested todo item could not be found
+            details:
+              type: array
+              description: Additional error details
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: Field that caused the error
+                    example: title
+                  message:
+                    type: string
+                    description: Detailed error message for the field
+                    example: Title is required and cannot be empty
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Authentication is required to access this resource
+
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: The request could not be understood or was missing required parameters
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: The requested resource could not be found
+
+    ValidationError:
+      description: Validation error - invalid data provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: One or more fields failed validation
+              details:
+                - field: email
+                  message: Must be a valid email address
+                - field: password
+                  message: Password must be at least 8 characters
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_SERVER_ERROR
+              message: An unexpected error occurred while processing your request

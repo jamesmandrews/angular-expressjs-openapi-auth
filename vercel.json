@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build:backend",
+  "installCommand": "npm install && cd backend && npm install",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "/api"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/v1/(.*)",
+      "dest": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

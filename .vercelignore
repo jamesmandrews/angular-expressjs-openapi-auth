@@ -1,0 +1,40 @@
+# Development files
+backend/src
+backend/tests
+backend/node_modules
+
+# Build artifacts (will be rebuilt by Vercel)
+dist
+
+# Logs
+logs
+*.log
+backend/logs
+
+# Testing
+coverage
+.nyc_output
+
+# Environment files
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md

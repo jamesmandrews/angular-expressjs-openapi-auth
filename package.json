@@ -1,0 +1,34 @@
+{
+  "name": "angular-expressjs-openapi-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo containing Angular 19 frontend and Express.js OpenAPI backend",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm run build:backend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "echo 'Angular build will be configured after Angular installation'",
+    "build:all": "npm run build:backend && npm run build:frontend",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "echo 'Angular dev server will be configured after Angular installation'",
+    "test:backend": "cd backend && npm test",
+    "clean": "rm -rf dist && cd backend && npm run clean",
+    "install:backend": "cd backend && npm install",
+    "vercel-build": "npm run build:backend"
+  },
+  "keywords": [
+    "express",
+    "angular",
+    "openapi",
+    "typescript",
+    "monorepo",
+    "vercel"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

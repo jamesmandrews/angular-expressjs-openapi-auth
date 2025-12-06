@@ -70,6 +70,17 @@ class UserStore {
     );
     return rows[0] ? rowToUser(rows[0]) : undefined;
   }
+
+  async verifyEmail(userId: string): Promise<User | undefined> {
+    const rows = await query<UserRow>(
+      `UPDATE users
+       SET email_verified = TRUE, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [userId]
+    );
+    return rows[0] ? rowToUser(rows[0]) : undefined;
+  }
 }
 
 export const userStore = new UserStore();

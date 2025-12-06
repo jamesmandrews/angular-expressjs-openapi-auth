@@ -53,6 +53,22 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires_at ON token_blacklist(expires_at)
   `);
 
+  // Create email verification tokens table
+  await query(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      token VARCHAR(64) PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create index on user_id for faster lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id)
+  `);
+
   logger.info('Database schema initialized successfully');
 }
 
@@ -71,7 +87,15 @@ export async function cleanupExpiredTokens(): Promise<void> {
     RETURNING token_hash
   `);
 
-  if (resetResult.length > 0 || blacklistResult.length > 0) {
-    logger.debug(`Cleaned up ${resetResult.length} reset tokens and ${blacklistResult.length} blacklisted tokens`);
+  // Clean up expired email verification tokens
+  const verificationResult = await query(`
+    DELETE FROM email_verification_tokens
+    WHERE expires_at < CURRENT_TIMESTAMP OR used = TRUE
+    RETURNING token
+  `);
+
+  const totalCleaned = resetResult.length + blacklistResult.length + verificationResult.length;
+  if (totalCleaned > 0) {
+    logger.debug(`Cleaned up ${resetResult.length} reset tokens, ${blacklistResult.length} blacklisted tokens, and ${verificationResult.length} verification tokens`);
   }
 }

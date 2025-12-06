@@ -28,7 +28,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
-  "email": "minimal@example.com",
+  "email": "thenetimp@gmail.com",
   "password": "SecurePass123"
 }
 
@@ -37,8 +37,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
 {
-  "email": "user@example.com",
-  "password": "NewSecurePass456"
+  "email": "thenetimp@gmail.com",
+  "password": "SecurePass123"
 }
 
 ### Get current user profile (requires auth)
@@ -73,6 +73,22 @@ Content-Type: {{contentType}}
   "token": "8a7b4dca64ada18ea7d03fe280a2443ff983e2ceb6cadd24b0df10cf15d49c2c",
   "password": "NewSecurePass456"
 }
+
+### ===========================================
+### Email Verification Flow
+### ===========================================
+
+### Verify email with token (get token from email after registration)
+POST {{baseUrl}}/auth/verify-email
+Content-Type: {{contentType}}
+
+{
+  "token": "paste-verification-token-here"
+}
+
+### Resend verification email (requires auth)
+POST {{baseUrl}}/auth/resend-verification
+Authorization: Bearer {{accessToken}}
 
 ### ===========================================
 ### Error Cases (for testing)

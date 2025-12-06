@@ -7,6 +7,11 @@ const getResetTokenExpiry = (): number => {
   return expiry ? parseInt(expiry, 10) : 3600; // Default 1 hour
 };
 
+const getVerificationTokenExpiry = (): number => {
+  const expiry = process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY;
+  return expiry ? parseInt(expiry, 10) : 86400; // Default 24 hours
+};
+
 const getAccessTokenExpiry = (): number => {
   const expiry = process.env.JWT_ACCESS_TOKEN_EXPIRY;
   return expiry ? parseInt(expiry, 10) : 900; // Default 15 minutes
@@ -135,5 +140,97 @@ class TokenBlacklistStore {
   }
 }
 
+interface EmailVerificationToken {
+  token: string;
+  userId: string;
+  expiresAt: Date;
+  used: boolean;
+}
+
+interface VerificationTokenRow {
+  token: string;
+  user_id: string;
+  expires_at: Date;
+  used: boolean;
+}
+
+class EmailVerificationTokenStore {
+  async create(userId: string): Promise<EmailVerificationToken> {
+    // Delete any existing unused tokens for this user
+    await query(
+      'DELETE FROM email_verification_tokens WHERE user_id = $1 AND used = FALSE',
+      [userId]
+    );
+
+    const token = randomBytes(32).toString('hex');
+    const expirySeconds = getVerificationTokenExpiry();
+    const expiresAt = new Date(Date.now() + expirySeconds * 1000);
+
+    await query(
+      `INSERT INTO email_verification_tokens (token, user_id, expires_at)
+       VALUES ($1, $2, $3)`,
+      [token, userId, expiresAt]
+    );
+
+    return {
+      token,
+      userId,
+      expiresAt,
+      used: false,
+    };
+  }
+
+  async get(token: string): Promise<EmailVerificationToken | undefined> {
+    const row = await queryOne<VerificationTokenRow>(
+      'SELECT * FROM email_verification_tokens WHERE token = $1',
+      [token]
+    );
+
+    if (!row) return undefined;
+
+    return {
+      token: row.token,
+      userId: row.user_id,
+      expiresAt: row.expires_at,
+      used: row.used,
+    };
+  }
+
+  async markUsed(token: string): Promise<boolean> {
+    const result = await query(
+      `UPDATE email_verification_tokens SET used = TRUE WHERE token = $1 RETURNING token`,
+      [token]
+    );
+    return result.length > 0;
+  }
+
+  async isValid(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+    const verificationToken = await this.get(token);
+
+    if (!verificationToken) {
+      return { valid: false, error: 'Invalid verification token' };
+    }
+
+    if (verificationToken.used) {
+      return { valid: false, error: 'Verification token has already been used' };
+    }
+
+    if (new Date() > verificationToken.expiresAt) {
+      return { valid: false, error: 'Verification token has expired' };
+    }
+
+    return { valid: true, userId: verificationToken.userId };
+  }
+
+  async deleteForUser(userId: string): Promise<boolean> {
+    const result = await query(
+      'DELETE FROM email_verification_tokens WHERE user_id = $1 RETURNING token',
+      [userId]
+    );
+    return result.length > 0;
+  }
+}
+
 export const passwordResetTokenStore = new PasswordResetTokenStore();
 export const tokenBlacklistStore = new TokenBlacklistStore();
+export const emailVerificationTokenStore = new EmailVerificationTokenStore();

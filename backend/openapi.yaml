@@ -259,6 +259,72 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /auth/verify-email:
+    post:
+      tags:
+        - auth
+      summary: Verify email address
+      description: Verifies the user's email address using the token sent via email
+      operationId: authVerifyEmail
+      x-eov-operation-handler: auth/verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email verified successfully
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_VERIFICATION_TOKEN
+                  message: The verification token is invalid or has expired
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/resend-verification:
+    post:
+      tags:
+        - auth
+      summary: Resend verification email
+      description: Sends a new verification email to the authenticated user
+      operationId: authResendVerification
+      x-eov-operation-handler: auth/resendVerification
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Verification email sent. Please check your inbox.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # ============================================
   # Health Check Endpoints
   # ============================================
@@ -476,6 +542,16 @@ components:
           minLength: 8
           maxLength: 128
           example: NewSecurePass456
+
+    VerifyEmailRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Email verification token received via email
+          example: abc123def456...
 
     # ============================================
     # Error Schema

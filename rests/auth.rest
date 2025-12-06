@@ -7,6 +7,8 @@
 # After login, copy the accessToken value to your rests/.env file:
 #   ACCESS_TOKEN=eyJhbGci...
 @accessToken = {{$dotenv ACCESS_TOKEN}}
+@passwordResetToken = {{$dotenv PASSWORD_RESET_TOKEN}}
+@emailVerificationToken = {{$dotenv EMAIL_VERIFICATION_TOKEN}}
 
 ### ===========================================
 ### Authentication Endpoints
@@ -70,7 +72,7 @@ POST {{baseUrl}}/auth/reset-password
 Content-Type: {{contentType}}
 
 {
-  "token": "8a7b4dca64ada18ea7d03fe280a2443ff983e2ceb6cadd24b0df10cf15d49c2c",
+  "token": "{{passwordResetToken}}",
   "password": "NewSecurePass456"
 }
 
@@ -83,7 +85,7 @@ POST {{baseUrl}}/auth/verify-email
 Content-Type: {{contentType}}
 
 {
-  "token": "paste-verification-token-here"
+  "token": "{{emailVerificationToken}}"
 }
 
 ### Resend verification email (requires auth)

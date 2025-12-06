@@ -17,7 +17,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
-  "email": "user@example.com",
+  "email": "thenetimp+user1@gmail.com",
   "password": "SecurePass123",
   "firstName": "John",
   "lastName": "Doe"
@@ -62,7 +62,7 @@ POST {{baseUrl}}/auth/forgot-password
 Content-Type: {{contentType}}
 
 {
-  "email": "user@example.com"
+  "email": "thenetimp@gmail.com"
 }
 
 ### Reset password with token (get token from email)
@@ -99,7 +99,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
-  "email": "user@example.com",
+  "email": "thenetimp@gmail.com",
   "password": "AnotherPass123"
 }
 
@@ -117,7 +117,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
-  "email": "test@example.com",
+  "email": "thenetimp+test@gmail.com",
   "password": "short"
 }
 
@@ -126,7 +126,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
 {
-  "email": "user@example.com",
+  "email": "thenetimp@gmail.com",
   "password": "WrongPassword123"
 }
 
@@ -135,7 +135,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
 {
-  "email": "nonexistent@example.com",
+  "email": "thenetimp+nonexistent@gmail.com",
   "password": "SecurePass123"
 }
 

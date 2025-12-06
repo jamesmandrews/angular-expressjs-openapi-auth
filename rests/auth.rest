@@ -2,8 +2,11 @@
 @baseUrl = http://localhost:3000/api/v1
 @contentType = application/json
 
-# After login, copy the accessToken here for authenticated requests
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3NTVkZTcyYy1mNDE3LTQwZTgtOWZiNC1jOTU2MWVlMDY3ZTIiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjQ5NzMwODMsImV4cCI6MTc2NDk3Mzk4M30.bogh02_NyLME_ec8ZaEAG5kdblzgiznD0v8wW_BHAXY
+# Access token from environment variable or .env file
+# Set ACCESS_TOKEN in rests/.env (gitignored) or as an environment variable
+# After login, copy the accessToken value to your rests/.env file:
+#   ACCESS_TOKEN=eyJhbGci...
+@accessToken = {{$dotenv ACCESS_TOKEN}}
 
 ### ===========================================
 ### Authentication Endpoints

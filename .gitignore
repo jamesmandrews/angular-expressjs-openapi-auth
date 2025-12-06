@@ -10,10 +10,12 @@ dist/
 .env.local
 .env.*.local
 backend/.env
+rests/.env
 
 # Keep example env files
 !.env.example
 !backend/.env.example
+!rests/.env.example
 
 # Logs
 logs/

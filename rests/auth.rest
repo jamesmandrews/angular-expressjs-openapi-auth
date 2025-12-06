@@ -35,7 +35,7 @@ Content-Type: {{contentType}}
 
 {
   "email": "user@example.com",
-  "password": "SecurePass123"
+  "password": "NewSecurePass456"
 }
 
 ### Get current user profile (requires auth)
@@ -67,7 +67,7 @@ POST {{baseUrl}}/auth/reset-password
 Content-Type: {{contentType}}
 
 {
-  "token": "RESET_TOKEN_FROM_EMAIL",
+  "token": "8a7b4dca64ada18ea7d03fe280a2443ff983e2ceb6cadd24b0df10cf15d49c2c",
   "password": "NewSecurePass456"
 }
 

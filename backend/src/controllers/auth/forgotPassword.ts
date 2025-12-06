@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { passwordResetTokenStore } from '../../models/tokenStore';
 import { ForgotPasswordRequest } from '../../types/auth.types';
+import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
+
+const getResetUrl = (): string => {
+  return process.env.PASSWORD_RESET_URL || 'http://localhost:3000/reset-password';
+};
 
 export default async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -21,11 +26,26 @@ export default async function forgotPassword(req: Request, res: Response, next: 
 
     // Create password reset token
     const resetToken = await passwordResetTokenStore.create(user.id);
+    const resetUrl = `${getResetUrl()}?token=${resetToken.token}`;
 
-    // In production, you would send an email here with the reset link
-    // For now, log the token (DO NOT do this in production!)
-    logger.info(`Password reset token for ${email}: ${resetToken.token}`);
-    logger.info(`Reset link: http://localhost:3000/reset-password?token=${resetToken.token}`);
+    // Send password reset email
+    const emailProvider = getEmailProvider();
+    const result = await emailProvider.send({
+      to: email,
+      subject: 'Password Reset Request',
+      text: `You requested a password reset. Click the link below to reset your password:\n\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email.`,
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>You requested a password reset. Click the link below to reset your password:</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `,
+    });
+
+    if (!result.success) {
+      logger.error(`Failed to send password reset email to ${email}`, { error: result.error });
+    }
 
     res.status(200).json({ message: successMessage });
   } catch (error) {

@@ -15,6 +15,7 @@ export interface UserPublic {
   firstName?: string;
   lastName?: string;
   emailVerified: boolean;
+  roles: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,13 +68,14 @@ export interface JwtPayload {
   exp: number;
 }
 
-export function toUserPublic(user: User): UserPublic {
+export function toUserPublic(user: User, roles: string[] = []): UserPublic {
   return {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
     emailVerified: user.emailVerified,
+    roles,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

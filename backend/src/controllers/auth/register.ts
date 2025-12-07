@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { emailVerificationTokenStore } from '../../models/tokenStore';
+import { roleStore, ROLE_IDS } from '../../models/roleStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
 import { generateAccessToken } from '../../utils/jwt';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
@@ -46,6 +47,9 @@ export default async function register(req: Request, res: Response, next: NextFu
     const passwordHash = await hashPassword(password);
     const user = await userStore.create({ email, password, firstName, lastName }, passwordHash);
 
+    // Assign default "user" role
+    await roleStore.assignRole(user.id, ROLE_IDS.USER);
+
     // Create verification token and send email
     const verificationToken = await emailVerificationTokenStore.create(user.id);
     const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.token}`;
@@ -71,9 +75,13 @@ export default async function register(req: Request, res: Response, next: NextFu
     // Generate access token
     const { token, expiresIn } = generateAccessToken(user.id, user.email);
 
+    // Get user roles
+    const userRoles = await roleStore.getUserRoles(user.id);
+    const roleNames = userRoles.map(r => r.name);
+
     res.status(201).json({
       data: {
-        user: toUserPublic(user),
+        user: toUserPublic(user, roleNames),
         tokens: {
           accessToken: token,
           expiresIn,

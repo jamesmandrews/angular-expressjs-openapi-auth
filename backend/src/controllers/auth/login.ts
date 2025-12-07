@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
+import { roleStore } from '../../models/roleStore';
 import { verifyPassword } from '../../utils/password';
 import { generateAccessToken } from '../../utils/jwt';
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
@@ -38,9 +39,13 @@ export default async function login(req: Request, res: Response, next: NextFunct
     // Generate access token
     const { token, expiresIn } = generateAccessToken(user.id, user.email);
 
+    // Get user roles
+    const userRoles = await roleStore.getUserRoles(user.id);
+    const roleNames = userRoles.map(r => r.name);
+
     res.status(200).json({
       data: {
-        user: toUserPublic(user),
+        user: toUserPublic(user, roleNames),
         tokens: {
           accessToken: token,
           expiresIn,

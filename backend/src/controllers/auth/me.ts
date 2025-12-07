@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
+import { roleStore } from '../../models/roleStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 
@@ -31,8 +32,12 @@ export default async function me(req: Request, res: Response, next: NextFunction
       return;
     }
 
+    // Get user roles
+    const userRoles = await roleStore.getUserRoles(user.id);
+    const roleNames = userRoles.map(r => r.name);
+
     res.status(200).json({
-      data: toUserPublic(user),
+      data: toUserPublic(user, roleNames),
     });
   } catch (error) {
     next(error);

@@ -69,7 +69,55 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id)
   `);
 
+  // Create roles table
+  await query(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id VARCHAR(22) PRIMARY KEY,
+      name VARCHAR(50) UNIQUE NOT NULL,
+      description VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create user_roles junction table (many-to-many)
+  await query(`
+    CREATE TABLE IF NOT EXISTS user_roles (
+      user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role_id VARCHAR(22) NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+      assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, role_id)
+    )
+  `);
+
+  // Create indexes for user_roles lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id)
+  `);
+
+  // Seed default roles if they don't exist
+  await seedDefaultRoles();
+
   logger.info('Database schema initialized successfully');
+}
+
+async function seedDefaultRoles(): Promise<void> {
+  const defaultRoles = [
+    { id: '0000000000000000000001', name: 'admin', description: 'Full system access' },
+    { id: '0000000000000000000002', name: 'user', description: 'Standard user access' },
+    { id: '0000000000000000000003', name: 'moderator', description: 'Content moderation access' },
+  ];
+
+  for (const role of defaultRoles) {
+    await query(
+      `INSERT INTO roles (id, name, description)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (name) DO NOTHING`,
+      [role.id, role.name, role.description]
+    );
+  }
 }
 
 export async function cleanupExpiredTokens(): Promise<void> {

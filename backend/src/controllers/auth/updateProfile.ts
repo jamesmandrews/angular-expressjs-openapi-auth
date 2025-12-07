@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
+import { roleStore } from '../../models/roleStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 
@@ -50,9 +51,13 @@ export default async function updateProfile(req: Request, res: Response, next: N
       return;
     }
 
+    // Get user roles
+    const userRoles = await roleStore.getUserRoles(updatedUser.id);
+    const roleNames = userRoles.map(r => r.name);
+
     res.status(200).json({
       message: 'Profile updated successfully',
-      data: toUserPublic(updatedUser),
+      data: toUserPublic(updatedUser, roleNames),
     });
   } catch (error) {
     next(error);

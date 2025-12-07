@@ -14,8 +14,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function validatePasswordStrength(password: string): { valid: boolean; message?: string } {
-  if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters long' };
+  if (password.length < 16) {
+    return { valid: false, message: 'Password must be at least 16 characters long' };
   }
   if (!/[A-Z]/.test(password)) {
     return { valid: false, message: 'Password must contain at least one uppercase letter' };

@@ -543,7 +543,7 @@ components:
           type: string
           format: password
           description: User's password (min 8 chars, must contain uppercase, lowercase, and number)
-          minLength: 8
+          minLength: 16
           maxLength: 128
           example: SecurePass123
         firstName:
@@ -637,7 +637,7 @@ components:
           type: string
           format: password
           description: New password (min 8 chars, must contain uppercase, lowercase, and number)
-          minLength: 8
+          minLength: 16
           maxLength: 128
           example: NewSecurePass456
 
@@ -682,7 +682,7 @@ components:
           type: string
           format: password
           description: New password (min 8 chars, must contain uppercase, lowercase, and number)
-          minLength: 8
+          minLength: 16
           maxLength: 128
           example: NewSecurePass456
 

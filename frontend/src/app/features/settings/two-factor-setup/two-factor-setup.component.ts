@@ -14,7 +14,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
       <app-header
         title="Two-Factor Authentication"
         [showBackLink]="true"
-        backLinkUrl="/settings/profile"
+        backLinkUrl="/account/profile"
         backLinkText="Back to Profile"
       ></app-header>
 

@@ -21,7 +21,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
         <div class="card">
           <div class="card-header">
             <h2>Account Information</h2>
-            <a routerLink="/settings/profile/edit" class="edit-link">Edit</a>
+            <a routerLink="/account/profile/edit" class="edit-link">Edit</a>
           </div>
 
           <div class="info-grid">
@@ -70,7 +70,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
                   {{ user()?.twoFactorEnabled ? 'Enabled' : 'Disabled' }}
                 </span>
               </div>
-              <a routerLink="/settings/2fa" class="security-action">
+              <a routerLink="/account/2fa" class="security-action">
                 {{ user()?.twoFactorEnabled ? 'Manage' : 'Enable' }}
               </a>
             </div>
@@ -80,7 +80,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
                 <span class="security-label">Password</span>
                 <span class="security-status">••••••••</span>
               </div>
-              <a routerLink="/settings/password" class="security-action">Change</a>
+              <a routerLink="/account/password" class="security-action">Change</a>
             </div>
           </div>
         </div>

@@ -55,7 +55,7 @@ export const routes: Routes = [
     canActivate: [emailVerifiedGuard],
   },
   {
-    path: 'settings',
+    path: 'account',
     canActivate: [emailVerifiedGuard],
     children: [
       {

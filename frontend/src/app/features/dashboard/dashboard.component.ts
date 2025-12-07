@@ -22,7 +22,7 @@ import { HeaderComponent } from '../../shared/components/header/header.component
           <div class="action-card">
             <h3>Security Recommendation</h3>
             <p>Enable two-factor authentication to secure your account.</p>
-            <a routerLink="/settings/2fa" class="btn-primary">Enable 2FA</a>
+            <a routerLink="/account/2fa" class="btn-primary">Enable 2FA</a>
           </div>
         }
       </main>

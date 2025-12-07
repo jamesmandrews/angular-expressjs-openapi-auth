@@ -27,7 +27,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <nav class="header-nav">
           @if (showNav) {
             <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">Dashboard</a>
-            <a routerLink="/settings/profile" routerLinkActive="active" class="nav-link">Profile</a>
+            <a routerLink="/account/profile" routerLinkActive="active" class="nav-link">Profile</a>
           }
           <button class="logout-btn" (click)="logout()">Logout</button>
         </nav>

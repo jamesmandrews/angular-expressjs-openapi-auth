@@ -15,7 +15,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
       <app-header
         title="Change Password"
         [showBackLink]="true"
-        backLinkUrl="/settings/profile"
+        backLinkUrl="/account/profile"
         backLinkText="Back to Profile"
       ></app-header>
 
@@ -70,7 +70,7 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-secondary" routerLink="/settings/profile">
+              <button type="button" class="btn-secondary" routerLink="/account/profile">
                 Cancel
               </button>
               <button type="submit" class="btn-primary" [disabled]="passwordForm.invalid || isLoading">

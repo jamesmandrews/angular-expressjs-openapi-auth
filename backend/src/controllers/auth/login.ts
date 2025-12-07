@@ -42,8 +42,8 @@ export default async function login(req: Request, res: Response, next: NextFunct
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(user.id);
 
-    // Generate access token with scopes
-    const { token, expiresIn } = generateAccessToken(user.id, user.email, userScopes);
+    // Generate access token with roles and scopes
+    const { token, expiresIn } = generateAccessToken(user.id, user.email, roleNames, userScopes);
 
     res.status(200).json({
       data: {

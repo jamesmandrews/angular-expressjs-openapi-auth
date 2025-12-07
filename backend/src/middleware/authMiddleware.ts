@@ -11,6 +11,7 @@ declare global {
       user?: {
         id: string;
         email: string;
+        roles: string[];
         scopes: string[];
       };
     }

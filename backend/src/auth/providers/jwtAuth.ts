@@ -56,6 +56,7 @@ export class JwtAuthProvider implements AuthProvider {
       user: {
         id: decoded.sub,
         email: decoded.email,
+        roles: decoded.roles || [],
         scopes: decoded.scopes || [],
       },
     };

@@ -19,10 +19,10 @@ const getRefreshThreshold = (): number => {
   return threshold ? parseInt(threshold, 10) : 50; // Default 50%
 };
 
-export function generateAccessToken(userId: string, email: string, scopes: string[] = []): { token: string; expiresIn: number } {
+export function generateAccessToken(userId: string, email: string, roles: string[] = [], scopes: string[] = []): { token: string; expiresIn: number } {
   const expiresIn = getAccessTokenExpiry();
   const token = jwt.sign(
-    { sub: userId, email, scopes },
+    { sub: userId, email, roles, scopes },
     getJwtSecret(),
     { expiresIn }
   );

@@ -65,6 +65,7 @@ export interface PasswordResetToken {
 export interface JwtPayload {
   sub: string; // user id
   email: string;
+  roles: string[];
   scopes: string[];
   iat: number;
   exp: number;

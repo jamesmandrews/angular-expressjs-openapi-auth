@@ -4,12 +4,13 @@ import { emailVerificationTokenStore } from '../../models/tokenStore';
 import { roleStore, ROLE_IDS } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
-import { generateAccessToken } from '../../utils/jwt';
+import { generateAccessTokenLegacy } from '../../utils/jwt';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
 import { getUserTypeConfig, getRoleForUserType, isAllowedUserType } from '../../config/userTypes';
+import { audit } from '../../utils/auditLogger';
 
 const getVerificationUrl = (): string => {
   return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:4200/verify-email';
@@ -102,7 +103,10 @@ export default async function register(req: Request, res: Response, next: NextFu
     const userScopes = await scopeStore.getUserScopes(user.id);
 
     // Generate access token with roles and scopes
-    const { token, expiresIn } = generateAccessToken(user.id, user.email, roleNames, userScopes);
+    const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+
+    // Audit successful registration
+    await audit.register(req, user.id, user.email, effectiveType);
 
     res.status(201).json({
       data: {

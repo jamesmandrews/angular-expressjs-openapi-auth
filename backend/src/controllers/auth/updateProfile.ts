@@ -4,6 +4,7 @@ import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
+import { audit } from '../../utils/auditLogger';
 
 interface UpdateProfileBody {
   firstName?: string;
@@ -51,6 +52,12 @@ export default async function updateProfile(req: Request, res: Response, next: N
       res.status(404).json(errorResponse);
       return;
     }
+
+    // Audit profile update
+    const updatedFields: string[] = [];
+    if (firstName !== undefined) updatedFields.push('firstName');
+    if (lastName !== undefined) updatedFields.push('lastName');
+    await audit.profileUpdated(req, updatedUser.id, updatedFields);
 
     // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(updatedUser.id);

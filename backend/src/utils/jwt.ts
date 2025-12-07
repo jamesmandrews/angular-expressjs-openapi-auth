@@ -19,13 +19,56 @@ const getRefreshThreshold = (): number => {
   return threshold ? parseInt(threshold, 10) : 50; // Default 50%
 };
 
-export function generateAccessToken(userId: string, email: string, roles: string[] = [], scopes: string[] = []): { token: string; expiresIn: number } {
+export interface GenerateTokenOptions {
+  userId: string;
+  email: string;
+  roles?: string[];
+  scopes?: string[];
+  twoFactorPending?: boolean;
+  twoFactorVerified?: boolean;
+  expiresIn?: number; // Override default expiry
+}
+
+export function generateAccessToken(options: GenerateTokenOptions): string {
+  const expiresIn = options.expiresIn ?? getAccessTokenExpiry();
+  const payload: Record<string, unknown> = {
+    sub: options.userId,
+    email: options.email,
+    roles: options.roles ?? [],
+    scopes: options.scopes ?? [],
+  };
+
+  // Add 2FA flags if present
+  if (options.twoFactorPending !== undefined) {
+    payload.twoFactorPending = options.twoFactorPending;
+  }
+  if (options.twoFactorVerified !== undefined) {
+    payload.twoFactorVerified = options.twoFactorVerified;
+  }
+
+  return jwt.sign(payload, getJwtSecret(), { expiresIn });
+}
+
+/**
+ * Generate a partial token for 2FA pending state (short expiry)
+ */
+export function generateTwoFactorPendingToken(userId: string, email: string): string {
+  return generateAccessToken({
+    userId,
+    email,
+    roles: [],
+    scopes: [],
+    twoFactorPending: true,
+    expiresIn: 300, // 5 minutes for 2FA verification
+  });
+}
+
+/**
+ * Legacy function signature for backwards compatibility
+ */
+export function generateAccessTokenLegacy(userId: string, email: string, roles: string[] = [], scopes: string[] = []): { token: string; expiresIn: number } {
   const expiresIn = getAccessTokenExpiry();
-  const token = jwt.sign(
-    { sub: userId, email, roles, scopes },
-    getJwtSecret(),
-    { expiresIn }
-  );
+  const token = generateAccessToken({ userId, email, roles, scopes });
   return { token, expiresIn };
 }
 

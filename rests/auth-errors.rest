@@ -1,0 +1,71 @@
+### Variables
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### ===========================================
+### Error Cases (for testing)
+### ===========================================
+
+### Register - duplicate email (should return 409)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "thenetimp@gmail.com",
+  "password": "AnotherPass12345678"
+}
+
+### Register - invalid email format (should return 422)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "not-an-email",
+  "password": "SecurePass12345678"
+}
+
+### Register - password too short (should return 422)
+# Minimum password length is 16 characters
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "thenetimp+test@gmail.com",
+  "password": "short"
+}
+
+### Login - wrong password (should return 401)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "thenetimp@gmail.com",
+  "password": "WrongPassword12345"
+}
+
+### Login - non-existent user (should return 401)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "thenetimp+nonexistent@gmail.com",
+  "password": "SecurePass12345678"
+}
+
+### Get profile without token (should return 401)
+GET {{baseUrl}}/auth/me
+
+### Get profile with invalid token (should return 401)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer invalid-token-here
+
+### 2FA verify without 2FA pending token (should return 400)
+@accessToken = {{$dotenv ACCESS_TOKEN}}
+
+POST {{baseUrl}}/auth/2fa/verify
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "code": "123456"
+}

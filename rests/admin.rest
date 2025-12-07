@@ -1,0 +1,39 @@
+### Variables
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+# Admin token - user must have admin role with admin:read scope
+@adminToken = {{$dotenv ADMIN_TOKEN}}
+
+### ===========================================
+### Audit Logs
+### ===========================================
+
+### Get all audit logs (paginated)
+GET {{baseUrl}}/admin/audit-logs
+Authorization: Bearer {{adminToken}}
+
+### Get audit logs with pagination
+GET {{baseUrl}}/admin/audit-logs?limit=20&offset=0
+Authorization: Bearer {{adminToken}}
+
+### Filter by action type
+GET {{baseUrl}}/admin/audit-logs?action=auth.login
+Authorization: Bearer {{adminToken}}
+
+### Filter by status (success, failure, blocked)
+GET {{baseUrl}}/admin/audit-logs?status=failure
+Authorization: Bearer {{adminToken}}
+
+### Filter by user ID
+# Replace USER_ID with actual user ID
+GET {{baseUrl}}/admin/audit-logs?userId=USER_ID
+Authorization: Bearer {{adminToken}}
+
+### Filter by date range
+GET {{baseUrl}}/admin/audit-logs?startDate=2025-12-01T00:00:00Z&endDate=2025-12-31T23:59:59Z
+Authorization: Bearer {{adminToken}}
+
+### Combined filters - failed logins in date range
+GET {{baseUrl}}/admin/audit-logs?action=auth.login&status=failure&startDate=2025-12-01T00:00:00Z
+Authorization: Bearer {{adminToken}}

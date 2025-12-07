@@ -58,6 +58,8 @@ export class JwtAuthProvider implements AuthProvider {
         email: decoded.email,
         roles: decoded.roles || [],
         scopes: decoded.scopes || [],
+        twoFactorPending: decoded.twoFactorPending,
+        twoFactorVerified: decoded.twoFactorVerified,
       },
     };
   }

@@ -1,17 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:backend",
-  "installCommand": "npm install && cd backend && npm install",
-  "rewrites": [
-    {
-      "source": "/api/v1/:path*",
-      "destination": "/api"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install",
+  "outputDirectory": "frontend/dist/frontend/browser",
   "routes": [
     {
       "src": "/api/v1/(.*)",
       "dest": "/api"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "functions": {

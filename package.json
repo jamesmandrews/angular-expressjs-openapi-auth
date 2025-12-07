@@ -18,7 +18,7 @@
     "test:frontend": "cd frontend && npm test",
     "clean": "rm -rf dist && cd backend && npm run clean && cd ../frontend && rm -rf dist",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "vercel-build": "npm run build:backend"
+    "vercel-build": "npm run build"
   },
   "keywords": [
     "express",

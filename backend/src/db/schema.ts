@@ -23,6 +23,17 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
   `);
 
+  // Add 2FA columns to users table (safe to run multiple times)
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)
+  `);
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE
+  `);
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_verified_at TIMESTAMP WITH TIME ZONE
+  `);
+
   // Create password reset tokens table
   await query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -125,6 +136,62 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_role_scopes_scope_id ON role_scopes(scope_id)
   `);
 
+  // Create audit_logs table
+  await query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id VARCHAR(22) PRIMARY KEY,
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      user_id VARCHAR(22) REFERENCES users(id) ON DELETE SET NULL,
+      action VARCHAR(50) NOT NULL,
+      resource_type VARCHAR(50),
+      resource_id VARCHAR(22),
+      ip_address INET,
+      user_agent VARCHAR(500),
+      status VARCHAR(20) NOT NULL,
+      details JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create indexes for audit_logs lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON audit_logs(status)
+  `);
+
+  // Create backup_codes table for 2FA backup codes
+  await query(`
+    CREATE TABLE IF NOT EXISTS backup_codes (
+      id VARCHAR(22) PRIMARY KEY,
+      user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code_hash VARCHAR(60) NOT NULL,
+      used_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create index for backup_codes lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_backup_codes_user_id ON backup_codes(user_id)
+  `);
+
+  // Create role_2fa_requirements table for configurable 2FA requirements by role
+  await query(`
+    CREATE TABLE IF NOT EXISTS role_2fa_requirements (
+      role_id VARCHAR(22) PRIMARY KEY REFERENCES roles(id) ON DELETE CASCADE,
+      required BOOLEAN DEFAULT FALSE,
+      grace_period_hours INTEGER DEFAULT 0
+    )
+  `);
+
   // Seed default roles if they don't exist
   await seedDefaultRoles();
 
@@ -161,6 +228,7 @@ const SCOPE_IDS = {
   ADMIN_USERS: '0000000000000000000106',
   ADMIN_ROLES: '0000000000000000000107',
   ADMIN_SCOPES: '0000000000000000000108',
+  ADMIN_READ: '0000000000000000000109',
 } as const;
 
 // Role IDs for reference
@@ -180,6 +248,7 @@ async function seedDefaultScopes(): Promise<void> {
     { id: SCOPE_IDS.ADMIN_USERS, name: 'admin:users', description: 'Full user management' },
     { id: SCOPE_IDS.ADMIN_ROLES, name: 'admin:roles', description: 'Role management' },
     { id: SCOPE_IDS.ADMIN_SCOPES, name: 'admin:scopes', description: 'Scope management' },
+    { id: SCOPE_IDS.ADMIN_READ, name: 'admin:read', description: 'Read admin data (audit logs, etc.)' },
   ];
 
   // Insert scopes
@@ -254,4 +323,20 @@ export async function cleanupExpiredTokens(): Promise<void> {
   if (totalCleaned > 0) {
     logger.debug(`Cleaned up ${resetResult.length} reset tokens, ${blacklistResult.length} blacklisted tokens, and ${verificationResult.length} verification tokens`);
   }
+}
+
+export async function cleanupOldAuditLogs(): Promise<number> {
+  const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS || '90', 10);
+
+  const result = await query(`
+    DELETE FROM audit_logs
+    WHERE timestamp < CURRENT_TIMESTAMP - INTERVAL '${retentionDays} days'
+    RETURNING id
+  `);
+
+  if (result.length > 0) {
+    logger.debug(`Cleaned up ${result.length} audit logs older than ${retentionDays} days`);
+  }
+
+  return result.length;
 }

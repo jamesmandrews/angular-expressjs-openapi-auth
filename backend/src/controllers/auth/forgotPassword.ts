@@ -4,6 +4,7 @@ import { passwordResetTokenStore } from '../../models/tokenStore';
 import { ForgotPasswordRequest } from '../../types/auth.types';
 import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
+import { audit } from '../../utils/auditLogger';
 
 const getResetUrl = (): string => {
   return process.env.PASSWORD_RESET_URL || 'http://localhost:3000/reset-password';
@@ -46,6 +47,9 @@ export default async function forgotPassword(req: Request, res: Response, next: 
     if (!result.success) {
       logger.error(`Failed to send password reset email to ${email}`, { error: result.error });
     }
+
+    // Audit password reset request (even for non-existent emails for security monitoring)
+    await audit.passwordResetRequest(req, email);
 
     res.status(200).json({ message: successMessage });
   } catch (error) {

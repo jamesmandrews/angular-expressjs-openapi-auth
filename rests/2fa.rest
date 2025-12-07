@@ -1,0 +1,77 @@
+### Variables
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+@accessToken = {{$dotenv ACCESS_TOKEN}}
+
+# Partial token received when logging in with 2FA enabled
+# Copy from login response when twoFactorRequired: true
+@twoFactorPendingToken = {{$dotenv TWO_FACTOR_PENDING_TOKEN}}
+
+### ===========================================
+### Two-Factor Authentication Setup
+### ===========================================
+
+### 1. Initialize 2FA setup
+# Returns QR code and secret. Scan QR with authenticator app.
+POST {{baseUrl}}/auth/2fa/setup
+Authorization: Bearer {{accessToken}}
+
+### 2. Verify setup and activate 2FA
+# Enter 6-digit code from authenticator app
+# IMPORTANT: Save the backup codes returned - they're shown only once!
+POST {{baseUrl}}/auth/2fa/verify-setup
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "code": "123456"
+}
+
+### ===========================================
+### Two-Factor Login Verification
+### ===========================================
+
+### Verify 2FA during login
+# Use the partial token from login response (when twoFactorRequired: true)
+# Can use TOTP code or backup code
+POST {{baseUrl}}/auth/2fa/verify
+Content-Type: {{contentType}}
+Authorization: Bearer {{twoFactorPendingToken}}
+
+{
+  "code": "123456"
+}
+
+### ===========================================
+### Backup Codes Management
+### ===========================================
+
+### Get remaining backup codes count
+GET {{baseUrl}}/auth/2fa/backup-codes
+Authorization: Bearer {{accessToken}}
+
+### Regenerate backup codes
+# Requires current TOTP code (not backup code)
+# Old backup codes are invalidated
+POST {{baseUrl}}/auth/2fa/backup-codes/regenerate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "code": "123456"
+}
+
+### ===========================================
+### Disable 2FA
+### ===========================================
+
+### Disable 2FA
+# Requires password AND either TOTP code or backup code
+POST {{baseUrl}}/auth/2fa/disable
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "password": "SecurePass12345678",
+  "code": "123456"
+}

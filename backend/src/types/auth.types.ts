@@ -70,6 +70,8 @@ export interface JwtPayload {
   scopes: string[];
   iat: number;
   exp: number;
+  twoFactorPending?: boolean; // True if 2FA verification is required
+  twoFactorVerified?: boolean; // True if 2FA was verified this session
 }
 
 export function toUserPublic(user: User, roles: string[] = [], scopes: string[] = []): UserPublic {

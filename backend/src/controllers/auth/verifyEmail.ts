@@ -5,6 +5,7 @@ import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
+import { audit } from '../../utils/auditLogger';
 
 export default async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -39,6 +40,9 @@ export default async function verifyEmail(req: Request, res: Response, next: Nex
 
     // Mark token as used
     await emailVerificationTokenStore.markUsed(token);
+
+    // Audit email verification
+    await audit.emailVerified(req, user.id);
 
     // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(user.id);

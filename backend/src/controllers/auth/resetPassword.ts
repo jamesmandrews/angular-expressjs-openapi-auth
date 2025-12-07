@@ -4,6 +4,7 @@ import { passwordResetTokenStore } from '../../models/tokenStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
 import { ResetPasswordRequest } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
+import { audit } from '../../utils/auditLogger';
 
 export default async function resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -53,6 +54,9 @@ export default async function resetPassword(req: Request, res: Response, next: N
 
     // Mark token as used
     await passwordResetTokenStore.markUsed(token);
+
+    // Audit password reset
+    await audit.passwordReset(req, user.id);
 
     res.status(200).json({
       message: 'Password has been successfully reset',

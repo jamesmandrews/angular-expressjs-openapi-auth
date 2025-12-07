@@ -13,6 +13,8 @@ declare global {
         email: string;
         roles: string[];
         scopes: string[];
+        twoFactorPending?: boolean;
+        twoFactorVerified?: boolean;
       };
     }
   }
@@ -65,6 +67,20 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
       const requiredScopes = securityRequirements
         .filter((requirement: Record<string, string[]>) => 'bearerAuth' in requirement)
         .flatMap((requirement: Record<string, string[]>) => requirement.bearerAuth || []);
+
+      // Check if this is a 2FA pending token trying to access a protected route
+      // Only allow 2FA pending tokens on the 2FA verify endpoint
+      const is2FAVerifyEndpoint = req.path.includes('/auth/2fa/verify');
+      if (authResult.user?.twoFactorPending && !is2FAVerifyEndpoint) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            code: '2FA_REQUIRED',
+            message: 'Two-factor authentication verification required. Please verify with your authenticator app.',
+          },
+        };
+        res.status(403).json(errorResponse);
+        return;
+      }
 
       // Validate scopes if any are required
       if (requiredScopes.length > 0) {

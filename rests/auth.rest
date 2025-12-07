@@ -93,6 +93,30 @@ POST {{baseUrl}}/auth/resend-verification
 Authorization: Bearer {{accessToken}}
 
 ### ===========================================
+### Profile Management
+### ===========================================
+
+### Update profile (requires auth)
+PATCH {{baseUrl}}/auth/me
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "firstName": "John",
+  "lastName": "Smith"
+}
+
+### Change password (requires auth and current password)
+POST {{baseUrl}}/auth/change-password
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "currentPassword": "SecurePass123",
+  "newPassword": "NewSecurePass456"
+}
+
+### ===========================================
 ### Error Cases (for testing)
 ### ===========================================
 

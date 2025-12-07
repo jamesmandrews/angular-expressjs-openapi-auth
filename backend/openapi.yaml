@@ -258,6 +258,82 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+        - auth
+      summary: Update current user profile
+      description: Updates the profile of the currently authenticated user
+      operationId: authUpdateProfile
+      x-eov-operation-handler: auth/updateProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile updated successfully
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/change-password:
+    post:
+      tags:
+        - auth
+      summary: Change password
+      description: Changes the password for the currently authenticated user. Requires current password for verification.
+      operationId: authChangePassword
+      x-eov-operation-handler: auth/changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password changed successfully
+        '401':
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_PASSWORD
+                  message: Current password is incorrect
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/verify-email:
     post:
@@ -553,6 +629,41 @@ components:
           type: string
           description: Email verification token received via email
           example: abc123def456...
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          description: User's first name
+          minLength: 1
+          maxLength: 100
+          example: John
+        lastName:
+          type: string
+          description: User's last name
+          minLength: 1
+          maxLength: 100
+          example: Doe
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          description: Current password for verification
+          example: CurrentPass123
+        newPassword:
+          type: string
+          format: password
+          description: New password (min 8 chars, must contain uppercase, lowercase, and number)
+          minLength: 8
+          maxLength: 128
+          example: NewSecurePass456
 
     # ============================================
     # Error Schema

@@ -83,6 +83,41 @@ class UserStore {
     );
     return rows[0] ? rowToUser(rows[0]) : undefined;
   }
+
+  async updateProfile(
+    userId: string,
+    data: { firstName?: string; lastName?: string }
+  ): Promise<User | undefined> {
+    const updates: string[] = [];
+    const values: (string | null)[] = [];
+    let paramIndex = 1;
+
+    if (data.firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(data.firstName || null);
+    }
+
+    if (data.lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(data.lastName || null);
+    }
+
+    if (updates.length === 0) {
+      return this.getById(userId);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(userId);
+
+    const rows = await query<UserRow>(
+      `UPDATE users
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}
+       RETURNING *`,
+      values
+    );
+    return rows[0] ? rowToUser(rows[0]) : undefined;
+  }
 }
 
 export const userStore = new UserStore();

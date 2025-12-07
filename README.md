@@ -1,442 +1,308 @@
-# Todo List API - Express.js with OpenAPI
+# Angular + Express.js Authentication System
 
-A TypeScript-based REST API for managing a todo list, built with Express.js and OpenAPI validation.
+A full-stack authentication application with an Angular 18 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.
 
 ## Features
 
-### Core Functionality
-- Full CRUD operations for todo items
-- OpenAPI 3.0 specification-driven development
-- **Automatic route registration** - Routes are automatically wired from the OpenAPI spec using `operationHandlers`
-- **Pluggable authentication system** - OpenAPI spec dictates protected endpoints, authentication logic is customizable
-- Automatic request validation using express-openapi-validator
-- TypeScript for type safety
-- Structured error responses
-- In-memory data storage
+### Authentication
+- User registration with email verification
+- Login with JWT access tokens
+- Token refresh mechanism
+- Password reset via email
+- Change password functionality
 
-### Production-Ready Security
-- **Helmet.js** - Security headers (CSP, HSTS, etc.)
-- **Dynamic CORS** - Configure multiple allowed origins
-- **Rate Limiting** - Prevent brute force and API abuse
-- **Request Size Limits** - Configurable payload size limits
-- **Graceful Shutdown** - Handles SIGTERM/SIGINT properly
+### Two-Factor Authentication (2FA)
+- TOTP-based 2FA using authenticator apps (Google Authenticator, Authy, 1Password, etc.)
+- QR code setup flow
+- Backup codes for account recovery
+- Enable/disable 2FA management
 
-### Operational Excellence
-- **Structured Logging** - Winston logger with multiple transports
-- **Health Check Endpoint** - Monitor server status and metrics
-- **Error Tracking** - Proper handling of uncaught exceptions
-- **HTTP Request Logging** - Track all requests with response times
+### Security
+- Bcrypt password hashing
+- JWT token blacklisting for logout
+- Rate limiting
+- Helmet.js security headers
+- CORS configuration
+- Role-based access control with scopes
+
+### User Management
+- User profiles with first/last name
+- Multiple user types (configurable)
+- Audit logging for security events
+
+## Tech Stack
+
+### Frontend
+- **Angular 18** with standalone components
+- **Angular Signals** for reactive state management
+- **RxJS** for HTTP operations
+- TypeScript
+
+### Backend
+- **Express.js** with TypeScript
+- **OpenAPI 3.0** specification-driven development
+- **PostgreSQL** database
+- **express-openapi-validator** for automatic routing and validation
+- **nodemailer** for email delivery
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
+- Node.js v18+
+- Docker (for PostgreSQL)
+- npm
 
-## Installation
+## Quick Start
+
+### 1. Clone and Install
 
 ```bash
+git clone <repository-url>
+cd angular-expressjs-openapi-auth
+
+# Install root dependencies
 npm install
+
+# Install backend dependencies
+cd backend && npm install && cd ..
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 ```
 
-## Configuration
-
-Copy `.env.example` to `.env` to configure the application:
+### 2. Start PostgreSQL
 
 ```bash
-cp .env.example .env
+docker-compose up -d
 ```
 
-### Security & CORS Configuration
+### 3. Configure Environment
 
 ```bash
-# CORS - Comma-separated list of allowed origins
-# The server will dynamically return the requesting origin if it's in this list
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,https://example.com
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000      # 15 minutes
-RATE_LIMIT_MAX_REQUESTS=100      # Max requests per window
-
-# Request Size Limits
-REQUEST_BODY_SIZE_LIMIT=10mb
-
-# Graceful Shutdown
-SHUTDOWN_TIMEOUT=10000           # 10 seconds
+cp backend/.env.example backend/.env
 ```
 
-### Authentication Configuration
-
-The application supports pluggable authentication providers. Set `AUTH_PROVIDER` to choose one:
-
-- `stub` (default) - All requests are allowed, useful for development
-- `apikey` - Requires `X-API-Key` header
-- `jwt` - Requires Bearer token (you'll need to implement JWT verification)
-
+Edit `backend/.env` and set at minimum:
 ```bash
-# Authentication
-AUTH_PROVIDER=stub
-
-# For API Key authentication
-AUTH_PROVIDER=apikey
-API_KEYS=your-key-1,your-key-2,your-key-3
-
-# For JWT authentication
-AUTH_PROVIDER=jwt
-JWT_SECRET=your-secret-key
-JWT_EXPIRY=1h
+JWT_SECRET=your-secure-secret-key
 ```
 
-**Protected Endpoints:**
-- `POST /api/v1/todos` - Create todo (requires authentication)
-- `PUT /api/v1/todos/:todoId` - Update todo (requires authentication)
-- `PATCH /api/v1/todos/:todoId` - Partial update (requires authentication)
-- `DELETE /api/v1/todos/:todoId` - Delete todo (requires authentication)
+### 4. Start Development Servers
 
-**Public Endpoints:**
-- `GET /api/v1/todos` - List todos (no authentication required)
-- `GET /api/v1/todos/:todoId` - Get todo (no authentication required)
-- `GET /api/v1/health` - Health check (no authentication required)
-
-## Running the Application
-
-### Development Mode
 ```bash
+# Start both frontend and backend
 npm run dev
-```
-The server will start on http://localhost:3000 with hot-reloading enabled.
 
-### Production Mode
-```bash
-npm run build
-npm start
+# Or start separately:
+npm run dev:backend   # Express API on http://localhost:3000
+npm run dev:frontend  # Angular app on http://localhost:4200
 ```
 
-### With Authentication
-```bash
-# Using stub authentication (default)
-npm start
+### 5. Access the Application
 
-# Using API key authentication
-AUTH_PROVIDER=apikey API_KEYS=key1,key2 npm start
-
-# Using JWT authentication
-AUTH_PROVIDER=jwt JWT_SECRET=your-secret npm start
-```
-
-## API Endpoints
-
-All endpoints are prefixed with `/api/v1`:
-
-### Health & Monitoring
-- `GET /api/v1/health` - Health check endpoint
-  - Returns: server status, uptime, memory usage
-
-### Todo Management
-- `GET /api/v1/todos` - Get all todos (public)
-  - Query params: `status` (completed|pending), `limit`, `offset`
-- `POST /api/v1/todos` - Create a new todo (protected)
-- `GET /api/v1/todos/:todoId` - Get a specific todo (public)
-- `PUT /api/v1/todos/:todoId` - Update a todo (protected)
-- `PATCH /api/v1/todos/:todoId` - Partially update a todo (protected)
-- `DELETE /api/v1/todos/:todoId` - Delete a todo (protected)
-
-## Example Requests
-
-### Create a Todo (Protected)
-```bash
-# With stub authentication (default)
-curl -X POST http://localhost:3000/api/v1/todos \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Buy groceries",
-    "description": "Milk, eggs, and bread",
-    "priority": "high",
-    "dueDate": "2025-11-15T10:00:00Z"
-  }'
-
-# With API Key authentication
-curl -X POST http://localhost:3000/api/v1/todos \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "title": "Buy groceries",
-    "description": "Milk, eggs, and bread"
-  }'
-```
-
-### Get All Todos
-```bash
-curl http://localhost:3000/api/v1/todos
-```
-
-### Get Completed Todos with Pagination
-```bash
-curl "http://localhost:3000/api/v1/todos?status=completed&limit=10&offset=0"
-```
-
-### Update a Todo
-```bash
-curl -X PUT http://localhost:3000/api/v1/todos/{todoId} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Buy groceries - UPDATED",
-    "completed": true
-  }'
-```
-
-### Partially Update a Todo
-```bash
-curl -X PATCH http://localhost:3000/api/v1/todos/{todoId} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "completed": true
-  }'
-```
-
-### Delete a Todo
-```bash
-curl -X DELETE http://localhost:3000/api/v1/todos/{todoId}
-```
+Open http://localhost:4200 in your browser.
 
 ## Project Structure
 
 ```
-├── src/
-│   ├── auth/
-│   │   ├── authProvider.ts      # Authentication provider interface
-│   │   └── providers/
-│   │       ├── stubAuth.ts      # Stub auth (always allows)
-│   │       ├── jwtAuth.ts       # JWT Bearer token auth
-│   │       └── apiKeyAuth.ts    # API Key header auth
-│   ├── controllers/
-│   │   ├── healthCheck.ts       # GET /health handler
-│   │   ├── getAllTodos.ts       # GET /todos handler
-│   │   ├── createTodo.ts        # POST /todos handler
-│   │   ├── getTodoById.ts       # GET /todos/:id handler
-│   │   ├── updateTodo.ts        # PUT /todos/:id handler
-│   │   ├── patchTodo.ts         # PATCH /todos/:id handler
-│   │   └── deleteTodo.ts        # DELETE /todos/:id handler
-│   ├── middleware/
-│   │   ├── authMiddleware.ts    # Authentication middleware
-│   │   ├── security.ts          # Security middleware (CORS, rate limiting, Helmet)
-│   │   └── errorHandler.ts      # Error handling middleware
-│   ├── models/
-│   │   └── todoStore.ts         # In-memory data store
-│   ├── types/
-│   │   └── todo.types.ts        # TypeScript type definitions
-│   ├── utils/
-│   │   └── logger.ts            # Winston structured logger
-│   ├── app.ts                   # Express app configuration
-│   └── server.ts                # Server entry point with graceful shutdown
-├── logs/
-│   ├── error.log                # Error logs only
-│   └── combined.log             # All logs
-├── openapi.yaml                 # OpenAPI specification
-├── .env.example                # Environment configuration example
-├── tsconfig.json               # TypeScript configuration
-└── package.json                # Project dependencies
+/
+├── backend/                    # Express.js API
+│   ├── src/
+│   │   ├── controllers/        # OpenAPI operation handlers
+│   │   │   └── auth/           # Authentication controllers
+│   │   │       └── 2fa/        # Two-factor authentication
+│   │   ├── middleware/         # Auth, security, error handling
+│   │   ├── models/             # Data stores (user, token, etc.)
+│   │   ├── db/                 # Database connection and schema
+│   │   ├── email/              # Email providers (stub, SMTP)
+│   │   ├── utils/              # JWT, password, TOTP utilities
+│   │   └── types/              # TypeScript definitions
+│   ├── openapi.yaml            # API specification
+│   └── tests/                  # Jest tests
+│
+├── frontend/                   # Angular 18 application
+│   ├── src/app/
+│   │   ├── core/
+│   │   │   ├── services/       # AuthService with signals
+│   │   │   ├── guards/         # Route guards
+│   │   │   └── interceptors/   # HTTP interceptors
+│   │   ├── features/
+│   │   │   ├── auth/           # Login, register, 2FA, email verify
+│   │   │   ├── dashboard/      # Main dashboard
+│   │   │   └── settings/       # Profile, password, 2FA management
+│   │   └── shared/             # Shared components and models
+│   └── proxy.conf.json         # Dev proxy to backend
+│
+├── docker-compose.yml          # PostgreSQL container
+└── package.json                # Root workspace scripts
 ```
 
-## How Automatic Routing Works
+## Available Scripts
 
-This project uses `express-openapi-validator`'s `operationHandlers` feature to automatically wire routes from the OpenAPI specification:
+### Root Level
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start both frontend and backend |
+| `npm run build` | Build both applications |
+| `npm run dev:backend` | Start backend only |
+| `npm run dev:frontend` | Start frontend only |
+| `npm run build:backend` | Build backend |
+| `npm run build:frontend` | Build frontend |
+| `npm run clean` | Remove build artifacts |
 
-1. **OpenAPI Spec**: Each operation in `openapi.yaml` has an `operationId` and `x-eov-operation-handler` extension:
-   ```yaml
-   get:
-     operationId: getAllTodos
-     x-eov-operation-handler: getAllTodos
-   ```
+### Backend (`cd backend`)
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server with hot reload |
+| `npm test` | Run Jest tests |
+| `npm run build` | Compile TypeScript |
 
-2. **Controller Files**: Each handler is a separate file in `src/controllers/` named after the `operationId`, exporting a default function.
+### Database
+| Command | Description |
+|---------|-------------|
+| `docker-compose up -d` | Start PostgreSQL |
+| `docker-compose down` | Stop PostgreSQL |
+| `docker-compose down -v` | Stop and delete all data |
 
-3. **Automatic Wiring**: The validator reads the OpenAPI spec and automatically registers routes to their corresponding handlers - no manual route definition needed!
+## API Endpoints
 
-This approach ensures your routes always match your OpenAPI specification and reduces boilerplate code.
+### Authentication
 
-## OpenAPI Specification
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/auth/register` | No | Create account |
+| POST | `/api/v1/auth/login` | No | Login |
+| POST | `/api/v1/auth/logout` | Yes | Logout |
+| POST | `/api/v1/auth/refresh` | Yes | Refresh token |
+| GET | `/api/v1/auth/me` | Yes | Get profile |
+| PATCH | `/api/v1/auth/me` | Yes | Update profile |
+| POST | `/api/v1/auth/change-password` | Yes | Change password |
+| POST | `/api/v1/auth/forgot-password` | No | Request reset |
+| POST | `/api/v1/auth/reset-password` | No | Reset password |
+| POST | `/api/v1/auth/verify-email` | No | Verify email |
+| POST | `/api/v1/auth/resend-verification` | Yes | Resend email |
 
-The API is defined using OpenAPI 3.0.3 specification in `openapi.yaml`. The specification includes:
+### Two-Factor Authentication
 
-- Complete endpoint definitions
-- Request/response schemas
-- Validation rules
-- Error response formats
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/auth/2fa/setup` | Yes | Get QR code |
+| POST | `/api/v1/auth/2fa/verify-setup` | Yes | Activate 2FA |
+| POST | `/api/v1/auth/2fa/verify` | Partial | Verify during login |
+| POST | `/api/v1/auth/2fa/disable` | Yes | Disable 2FA |
+| POST | `/api/v1/auth/2fa/backup-codes/regenerate` | Yes | New backup codes |
 
-## Validation
+### Health
 
-Request validation is automatically handled by `express-openapi-validator` based on the OpenAPI specification. Invalid requests will receive structured error responses:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health` | Server and database status |
 
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "One or more fields failed validation",
-    "details": [
-      {
-        "field": "title",
-        "message": "Title must be between 1 and 200 characters"
-      }
-    ]
-  }
-}
+## Configuration
+
+### Environment Variables
+
+See `backend/.env.example` for all options. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | 3000 | Server port |
+| `JWT_SECRET` | - | **Required** - Token signing key |
+| `JWT_ACCESS_TOKEN_EXPIRY` | 900 | Token lifetime (seconds) |
+| `POSTGRES_*` | - | Database connection |
+| `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
+| `TOTP_ISSUER` | MyApp | Name in authenticator apps |
+
+### Email Configuration
+
+**Development (default):** Emails are logged to console.
+
+**Production SMTP:**
+```bash
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@example.com
 ```
 
-## Error Responses
+## Frontend Routes
 
-The API returns standardized error responses:
+| Route | Description | Guard |
+|-------|-------------|-------|
+| `/login` | Login page | Guest only |
+| `/register` | Registration | Guest only |
+| `/verify-email` | Email verification | - |
+| `/verify-email-pending` | Pending verification | Unverified users |
+| `/2fa-verify` | 2FA code entry | 2FA pending |
+| `/dashboard` | Main dashboard | Verified users |
+| `/settings/profile` | Profile settings | Verified users |
+| `/settings/password` | Change password | Verified users |
+| `/settings/2fa` | 2FA management | Verified users |
 
-- `400 Bad Request` - Invalid input
-- `401 Unauthorized` - Authentication required or failed
-- `404 Not Found` - Resource not found
-- `422 Validation Error` - Data validation failures
-- `500 Internal Server Error` - Server errors
+## Architecture Highlights
 
-## Authentication
+### OpenAPI-First Backend
 
-The authentication system is pluggable and OpenAPI-driven:
+Routes are automatically registered from `openapi.yaml`:
 
-### How It Works
+```yaml
+paths:
+  /auth/login:
+    post:
+      operationId: authLogin
+      x-eov-operation-handler: auth/login
+```
 
-1. The OpenAPI specification (`openapi.yaml`) defines which endpoints require authentication using the `security` field
-2. Authentication providers implement the `AuthProvider` interface
-3. The auth middleware reads the OpenAPI spec and enforces security requirements
-4. You can swap authentication providers without changing any controller code
+Controllers export a default function matching the handler path:
+```typescript
+// backend/src/controllers/auth/login.ts
+export default async function login(req, res, next) { ... }
+```
 
-### Implementing Custom Authentication
+### Angular Signals
 
-To create a custom authentication provider:
+The frontend uses Angular Signals for reactive state:
 
-1. Implement the `AuthProvider` interface in `src/auth/authProvider.ts`
-2. Add your provider to the switch statement in `src/app.ts`
-3. Configure via `AUTH_PROVIDER` environment variable
+```typescript
+// AuthService
+readonly currentUser = computed(() => this.currentUserSignal());
+readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
+```
 
-See `src/auth/providers/` for example implementations.
+### Route Guards
 
-## Production Features
-
-### Security
-
-**Helmet.js** - Provides secure HTTP headers including:
-- Content Security Policy
-- HSTS (HTTP Strict Transport Security)
-- X-Frame-Options
-- X-Content-Type-Options
-
-**Dynamic CORS** - Configure multiple allowed origins in `CORS_ALLOWED_ORIGINS`. The server checks each incoming request origin and returns that specific origin in the `Access-Control-Allow-Origin` header if it's in the allowed list. This allows you to serve multiple domains (e.g., `example.com` and `example2.com`) from the same API.
-
-**Rate Limiting** - Protects against brute force attacks and API abuse:
-- Configurable window and max requests
-- Returns 429 status with clear error message
-- Rate limit info in response headers
-
-**Request Size Limits** - Configurable payload size limits prevent resource exhaustion attacks
-
-### Observability
-
-**Structured Logging** - Winston logger with:
-- Color-coded console output
-- File transports (error.log and combined.log)
-- Timestamp and level for each log entry
-- HTTP request logging with response times
-
-**Health Check** - `/api/v1/health` endpoint provides:
-- Server status
-- Uptime in seconds
-- Memory usage (MB)
-- Current environment
-
-**Error Tracking** - Handles:
-- Uncaught exceptions
-- Unhandled promise rejections
-- Graceful error logging before shutdown
-
-### Reliability
-
-**Graceful Shutdown** - Properly handles SIGTERM and SIGINT:
-- Stops accepting new connections
-- Waits for existing connections to complete
-- Configurable timeout (default 10s)
-- Logs shutdown progress
+- `authGuard` - Requires authentication
+- `guestGuard` - Requires unauthenticated
+- `emailVerifiedGuard` - Requires verified email
+- `twoFactorGuard` - Requires 2FA pending state
 
 ## Testing
 
-This project includes a comprehensive test suite with Jest and Supertest.
-
-### Running Tests
+### Backend Tests
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode (for development)
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
-
-# Run only unit tests
-npm run test:unit
-
-# Run only integration tests
-npm run test:integration
+cd backend
+npm test                    # Run all tests
+npm run test:watch          # Watch mode
+npm run test:coverage       # Coverage report
 ```
 
-### Test Structure
+### API Testing
 
-```
-tests/
-├── setup.ts                    # Global test configuration
-├── helpers/
-│   └── testHelpers.ts          # Test utilities and fixtures
-├── unit/
-│   └── auth/                   # Unit tests for auth providers
-│       ├── stubAuth.test.ts
-│       └── apiKeyAuth.test.ts
-└── integration/
-    ├── health.test.ts          # Health endpoint tests
-    └── todos.test.ts           # Todo API endpoint tests
-```
+Use the REST Client files in `rests/`:
+1. Copy `rests/.env.example` to `rests/.env`
+2. Open `.rest` files in VS Code with REST Client extension
+3. Execute requests and copy tokens to `.env`
 
-### Writing Tests
+## Deployment
 
-**Unit Tests** - Test individual functions/classes in isolation:
-```typescript
-import { StubAuthProvider } from '../../../src/auth/providers/stubAuth';
+The application is configured for Vercel deployment:
 
-describe('StubAuthProvider', () => {
-  it('should always return authenticated', async () => {
-    const provider = new StubAuthProvider();
-    const result = await provider.authenticate(mockRequest, []);
-    expect(result.authenticated).toBe(true);
-  });
-});
-```
+- Backend runs as a serverless function via `/api/index.ts`
+- Frontend builds to static files
+- All `/api/v1/*` routes are handled by the Express app
 
-**Integration Tests** - Test API endpoints end-to-end:
-```typescript
-import request from 'supertest';
-import { createTestApp } from '../helpers/testHelpers';
+## License
 
-describe('Todo API', () => {
-  const app = createTestApp();
-
-  it('should create a todo', async () => {
-    const response = await request(app)
-      .post('/api/v1/todos')
-      .send({ title: 'Test Todo' });
-
-    expect(response.status).toBe(201);
-  });
-});
-```
-
-## Scripts
-
-- `npm run dev` - Start development server with hot-reloading
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Run compiled application
-- `npm run clean` - Remove build output
-- `npm test` - Run all tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Run tests with coverage report
+This project is licensed under the GNU General Public License v2.0 - see the [LICENSE](LICENSE) file for details.

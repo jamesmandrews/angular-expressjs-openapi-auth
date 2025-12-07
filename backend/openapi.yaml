@@ -558,6 +558,11 @@ components:
           minLength: 1
           maxLength: 100
           example: Doe
+        userType:
+          type: string
+          description: User type for registration (determines default role). Defaults to 'user' if not specified.
+          maxLength: 50
+          example: user
 
     LoginRequest:
       type: object

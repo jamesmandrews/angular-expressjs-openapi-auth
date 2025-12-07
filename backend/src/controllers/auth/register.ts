@@ -9,6 +9,7 @@ import { RegisterRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
+import { getUserTypeConfig, getRoleForUserType, isAllowedUserType } from '../../config/userTypes';
 
 const getVerificationUrl = (): string => {
   return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:4200/verify-email';
@@ -16,7 +17,23 @@ const getVerificationUrl = (): string => {
 
 export default async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, password, firstName, lastName }: RegisterRequest = req.body;
+    const { email, password, firstName, lastName, userType }: RegisterRequest = req.body;
+
+    // Determine effective user type (default to 'user')
+    const config = getUserTypeConfig();
+    const effectiveType = userType || config.defaultType;
+
+    // Validate user type is allowed
+    if (!isAllowedUserType(effectiveType)) {
+      const errorResponse: ErrorResponse = {
+        error: {
+          code: 'INVALID_USER_TYPE',
+          message: `Invalid user type: ${effectiveType}. Allowed types: ${config.allowedTypes.join(', ')}`,
+        },
+      };
+      res.status(400).json(errorResponse);
+      return;
+    }
 
     // Check if email already exists
     if (await userStore.emailExists(email)) {
@@ -48,8 +65,14 @@ export default async function register(req: Request, res: Response, next: NextFu
     const passwordHash = await hashPassword(password);
     const user = await userStore.create({ email, password, firstName, lastName }, passwordHash);
 
-    // Assign default "user" role
-    await roleStore.assignRole(user.id, ROLE_IDS.USER);
+    // Assign role based on user type
+    const roleName = getRoleForUserType(effectiveType);
+    const assigned = await roleStore.assignRoleByName(user.id, roleName!);
+    if (!assigned) {
+      // Role doesn't exist in database - configuration error, fall back to 'user' role
+      logger.error(`Role '${roleName}' not found for user type '${effectiveType}', falling back to 'user'`);
+      await roleStore.assignRole(user.id, ROLE_IDS.USER);
+    }
 
     // Create verification token and send email
     const verificationToken = await emailVerificationTokenStore.create(user.id);

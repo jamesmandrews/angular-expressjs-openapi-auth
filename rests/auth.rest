@@ -103,7 +103,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "firstName": "John",
-  "lastName": "Smith"
+  "lastName": "Johnson"
 }
 
 ### Change password (requires auth and current password)

@@ -129,6 +129,10 @@ export class AuthService {
     );
   }
 
+  regenerateBackupCodes(code: string): Observable<{ data: { backupCodes: string[] } }> {
+    return this.http.post<{ data: { backupCodes: string[] } }>(`${this.apiUrl}/auth/2fa/backup-codes/regenerate`, { code });
+  }
+
   // ==================== Profile ====================
 
   getProfile(): Observable<{ data: { user: User } }> {

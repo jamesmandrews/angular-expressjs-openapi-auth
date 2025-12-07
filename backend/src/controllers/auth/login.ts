@@ -58,7 +58,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
 
       res.status(200).json({
         data: {
-          user: toUserPublic(user, roleNames, userScopes),
+          user: toUserPublic(user, roleNames, userScopes, is2FAEnabled),
           tokens: {
             accessToken: partialToken,
             expiresIn: 300, // 5 minutes to complete 2FA
@@ -79,7 +79,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
 
     res.status(200).json({
       data: {
-        user: toUserPublic(user, roleNames, userScopes),
+        user: toUserPublic(user, roleNames, userScopes, is2FAEnabled),
         tokens: {
           accessToken: token,
           expiresIn,

@@ -137,7 +137,7 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
     } = {
       message: 'Two-factor authentication verified successfully.',
       data: {
-        user: toUserPublic(user, roleNames, userScopes),
+        user: toUserPublic(user, roleNames, userScopes, true),
         tokens: {
           accessToken,
           expiresIn: parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10),

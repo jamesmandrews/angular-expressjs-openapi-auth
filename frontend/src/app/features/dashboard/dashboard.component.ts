@@ -2,50 +2,20 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { HeaderComponent } from '../../shared/components/header/header.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, HeaderComponent],
   template: `
     <div class="dashboard">
-      <header>
-        <h1>Dashboard</h1>
-        <button class="logout-btn" (click)="logout()">Logout</button>
-      </header>
+      <app-header title="Dashboard"></app-header>
 
       <main>
         <div class="welcome-card">
           <h2>Welcome, {{ user()?.firstName || user()?.email }}!</h2>
           <p>You are successfully logged in.</p>
-        </div>
-
-        <div class="info-card">
-          <h3>Account Info</h3>
-          <div class="info-row">
-            <span class="label">Email:</span>
-            <span class="value">{{ user()?.email }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">User Type:</span>
-            <span class="value">{{ user()?.userType }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Email Verified:</span>
-            <span class="value" [class.verified]="user()?.emailVerified">
-              {{ user()?.emailVerified ? 'Yes' : 'No' }}
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="label">2FA Enabled:</span>
-            <span class="value" [class.verified]="user()?.twoFactorEnabled">
-              {{ user()?.twoFactorEnabled ? 'Yes' : 'No' }}
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="label">Roles:</span>
-            <span class="value">{{ user()?.roles?.join(', ') || 'None' }}</span>
-          </div>
         </div>
 
         @if (!user()?.twoFactorEnabled) {
@@ -64,35 +34,6 @@ import { AuthService } from '../../core/services/auth.service';
       background: #f5f5f5;
     }
 
-    header {
-      background: white;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 24px;
-      color: #333;
-    }
-
-    .logout-btn {
-      padding: 8px 16px;
-      background: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .logout-btn:hover {
-      background: #c82333;
-    }
-
     main {
       padding: 24px;
       max-width: 800px;
@@ -100,7 +41,6 @@ import { AuthService } from '../../core/services/auth.service';
     }
 
     .welcome-card,
-    .info-card,
     .action-card {
       background: white;
       padding: 24px;
@@ -119,34 +59,9 @@ import { AuthService } from '../../core/services/auth.service';
       color: #666;
     }
 
-    .info-card h3,
     .action-card h3 {
       margin: 0 0 16px;
       color: #333;
-    }
-
-    .info-row {
-      display: flex;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-    }
-
-    .info-row:last-child {
-      border-bottom: none;
-    }
-
-    .label {
-      font-weight: 500;
-      color: #555;
-      width: 140px;
-    }
-
-    .value {
-      color: #333;
-    }
-
-    .value.verified {
-      color: #28a745;
     }
 
     .action-card p {
@@ -172,8 +87,4 @@ import { AuthService } from '../../core/services/auth.service';
 export class DashboardComponent {
   private authService = inject(AuthService);
   user = this.authService.currentUser;
-
-  logout(): void {
-    this.authService.logout();
-  }
 }

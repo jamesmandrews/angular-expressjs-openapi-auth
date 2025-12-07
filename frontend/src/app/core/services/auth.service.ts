@@ -166,6 +166,17 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiUrl}/auth/reset-password`, { token, password });
   }
 
+  // ==================== Email Verification ====================
+
+  resendVerification(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/auth/resend-verification`, {});
+  }
+
+  updateUserFromResponse(userData: User): void {
+    this.currentUserSignal.set(userData);
+    this.storeUser(userData);
+  }
+
   // ==================== Token Management ====================
 
   getAccessToken(): string | null {
@@ -220,12 +231,27 @@ export class AuthService {
   }
 
   private clearAuth(): void {
+    // Clear localStorage
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+
+    // Clear sessionStorage (in case any auth data was stored there)
+    sessionStorage.clear();
+
+    // Clear any auth-related cookies by expiring them
+    document.cookie.split(';').forEach((cookie) => {
+      const name = cookie.split('=')[0].trim();
+      if (name) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      }
+    });
+
+    // Reset signals
     this.currentUserSignal.set(null);
     this.isAuthenticatedSignal.set(false);
     this.twoFactorPendingSignal.set(false);
-    this.router.navigate(['/auth/login']);
+
+    this.router.navigate(['/login']);
   }
 }

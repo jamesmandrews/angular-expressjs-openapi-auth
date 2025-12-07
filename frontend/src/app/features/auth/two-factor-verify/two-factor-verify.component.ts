@@ -41,7 +41,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <div class="auth-links">
           <p>Lost access? Use a backup code instead.</p>
-          <a routerLink="/auth/login">Cancel and return to login</a>
+          <a routerLink="/login">Cancel and return to login</a>
         </div>
       </div>
     </div>

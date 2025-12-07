@@ -10,7 +10,7 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/auth/login']);
+  router.navigate(['/login']);
   return false;
 };
 
@@ -34,6 +34,42 @@ export const twoFactorGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/auth/login']);
+  router.navigate(['/login']);
+  return false;
+};
+
+export const emailVerifiedGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (!authService.isAuthenticated()) {
+    router.navigate(['/login']);
+    return false;
+  }
+
+  const user = authService.currentUser();
+  if (user?.emailVerified) {
+    return true;
+  }
+
+  router.navigate(['/verify-email-pending']);
+  return false;
+};
+
+export const emailNotVerifiedGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (!authService.isAuthenticated()) {
+    router.navigate(['/login']);
+    return false;
+  }
+
+  const user = authService.currentUser();
+  if (!user?.emailVerified) {
+    return true;
+  }
+
+  router.navigate(['/dashboard']);
   return false;
 };

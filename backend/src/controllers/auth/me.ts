@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
+import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 
@@ -38,8 +39,11 @@ export default async function me(req: Request, res: Response, next: NextFunction
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(user.id);
 
+    // Check 2FA status
+    const is2FAEnabled = await twoFactorStore.is2FAEnabled(user.id);
+
     res.status(200).json({
-      data: toUserPublic(user, roleNames, userScopes),
+      data: toUserPublic(user, roleNames, userScopes, is2FAEnabled),
     });
   } catch (error) {
     next(error);

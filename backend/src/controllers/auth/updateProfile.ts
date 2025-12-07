@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
+import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
@@ -64,9 +65,12 @@ export default async function updateProfile(req: Request, res: Response, next: N
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(updatedUser.id);
 
+    // Check 2FA status
+    const is2FAEnabled = await twoFactorStore.is2FAEnabled(updatedUser.id);
+
     res.status(200).json({
       message: 'Profile updated successfully',
-      data: toUserPublic(updatedUser, roleNames, userScopes),
+      data: toUserPublic(updatedUser, roleNames, userScopes, is2FAEnabled),
     });
   } catch (error) {
     next(error);

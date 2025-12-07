@@ -3,6 +3,7 @@ import { userStore } from '../../models/userStore';
 import { emailVerificationTokenStore } from '../../models/tokenStore';
 import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
+import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
@@ -49,9 +50,12 @@ export default async function verifyEmail(req: Request, res: Response, next: Nex
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(user.id);
 
+    // Check 2FA status
+    const is2FAEnabled = await twoFactorStore.is2FAEnabled(user.id);
+
     res.status(200).json({
       message: 'Email verified successfully',
-      data: toUserPublic(user, roleNames, userScopes),
+      data: toUserPublic(user, roleNames, userScopes, is2FAEnabled),
     });
   } catch (error) {
     next(error);

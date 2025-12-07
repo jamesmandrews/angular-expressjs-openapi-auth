@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent],
   template: `
     <div class="auth-container">
       <div class="auth-card">
@@ -80,12 +81,17 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
 
           <button type="submit" [disabled]="registerForm.invalid || isLoading">
-            {{ isLoading ? 'Creating account...' : 'Create Account' }}
+            @if (isLoading) {
+              <app-spinner [light]="true" [size]="16"></app-spinner>
+              <span>Creating account...</span>
+            } @else {
+              Create Account
+            }
           </button>
         </form>
 
         <div class="auth-links">
-          <a routerLink="/auth/login">Already have an account? Login</a>
+          <a routerLink="/login">Already have an account? Login</a>
         </div>
       </div>
     </div>
@@ -159,6 +165,10 @@ import { AuthService } from '../../../core/services/auth.service';
       font-size: 16px;
       cursor: pointer;
       transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     button:hover:not(:disabled) {

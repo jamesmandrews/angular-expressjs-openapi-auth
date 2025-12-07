@@ -15,6 +15,7 @@ export interface UserPublic {
   firstName?: string;
   lastName?: string;
   emailVerified: boolean;
+  twoFactorEnabled: boolean;
   roles: string[];
   scopes: string[];
   createdAt: Date;
@@ -74,13 +75,19 @@ export interface JwtPayload {
   twoFactorVerified?: boolean; // True if 2FA was verified this session
 }
 
-export function toUserPublic(user: User, roles: string[] = [], scopes: string[] = []): UserPublic {
+export function toUserPublic(
+  user: User,
+  roles: string[] = [],
+  scopes: string[] = [],
+  twoFactorEnabled: boolean = false
+): UserPublic {
   return {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
     emailVerified: user.emailVerified,
+    twoFactorEnabled,
     roles,
     scopes,
     createdAt: user.createdAt,

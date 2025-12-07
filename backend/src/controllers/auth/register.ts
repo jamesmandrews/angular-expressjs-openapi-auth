@@ -110,7 +110,7 @@ export default async function register(req: Request, res: Response, next: NextFu
 
     res.status(201).json({
       data: {
-        user: toUserPublic(user, roleNames, userScopes),
+        user: toUserPublic(user, roleNames, userScopes, false),
         tokens: {
           accessToken: token,
           expiresIn,

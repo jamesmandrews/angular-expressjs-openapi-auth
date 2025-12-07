@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent],
   template: `
     <div class="auth-container">
       <div class="auth-card">
@@ -45,13 +46,18 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
 
           <button type="submit" [disabled]="loginForm.invalid || isLoading">
-            {{ isLoading ? 'Logging in...' : 'Login' }}
+            @if (isLoading) {
+              <app-spinner [light]="true" [size]="16"></app-spinner>
+              <span>Logging in...</span>
+            } @else {
+              Login
+            }
           </button>
         </form>
 
         <div class="auth-links">
-          <a routerLink="/auth/register">Don't have an account? Register</a>
-          <a routerLink="/auth/forgot-password">Forgot password?</a>
+          <a routerLink="/register">Don't have an account? Register</a>
+          <a routerLink="/forgot-password">Forgot password?</a>
         </div>
       </div>
     </div>
@@ -116,6 +122,10 @@ import { AuthService } from '../../../core/services/auth.service';
       font-size: 16px;
       cursor: pointer;
       transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     button:hover:not(:disabled) {
@@ -186,7 +196,7 @@ export class LoginComponent {
       next: (response) => {
         this.isLoading = false;
         if (response.data.twoFactorRequired) {
-          this.router.navigate(['/auth/2fa-verify']);
+          this.router.navigate(['/2fa-verify']);
         } else {
           this.router.navigate(['/dashboard']);
         }

@@ -7,7 +7,7 @@ export async function initializeDatabase(): Promise<void> {
   // Create users table
   await query(`
     CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      id VARCHAR(22) PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       first_name VARCHAR(100),
@@ -27,7 +27,7 @@ export async function initializeDatabase(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       token VARCHAR(64) PRIMARY KEY,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
       used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -57,7 +57,7 @@ export async function initializeDatabase(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS email_verification_tokens (
       token VARCHAR(64) PRIMARY KEY,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
       used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

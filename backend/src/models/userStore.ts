@@ -1,5 +1,6 @@
 import { query, queryOne } from '../db/connection';
 import { User, RegisterRequest } from '../types/auth.types';
+import { generateShortId } from '../utils/shortId';
 
 interface UserRow {
   id: string;
@@ -27,11 +28,12 @@ function rowToUser(row: UserRow): User {
 
 class UserStore {
   async create(data: RegisterRequest, passwordHash: string): Promise<User> {
+    const id = generateShortId();
     const rows = await query<UserRow>(
-      `INSERT INTO users (email, password_hash, first_name, last_name)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO users (id, email, password_hash, first_name, last_name)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [data.email.toLowerCase(), passwordHash, data.firstName || null, data.lastName || null]
+      [id, data.email.toLowerCase(), passwordHash, data.firstName || null, data.lastName || null]
     );
     return rowToUser(rows[0]);
   }

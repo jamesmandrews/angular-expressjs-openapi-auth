@@ -393,9 +393,10 @@ components:
       properties:
         id:
           type: string
-          format: uuid
-          description: Unique identifier for the user
-          example: 550e8400-e29b-41d4-a716-446655440000
+          minLength: 22
+          maxLength: 22
+          description: Unique identifier for the user (short ID)
+          example: 2nSVxa5oKK6zABCD1234EF
         email:
           type: string
           format: email

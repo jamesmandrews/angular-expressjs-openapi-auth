@@ -1,21 +1,23 @@
 {
   "name": "angular-expressjs-openapi-monorepo",
   "version": "1.0.0",
-  "description": "Monorepo containing Angular 19 frontend and Express.js OpenAPI backend",
+  "description": "Monorepo containing Angular 18 frontend and Express.js OpenAPI backend",
   "private": true,
   "workspaces": [
     "backend"
   ],
   "scripts": {
-    "build": "npm run build:backend",
+    "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "cd backend && npm run build",
-    "build:frontend": "echo 'Angular build will be configured after Angular installation'",
-    "build:all": "npm run build:backend && npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:all": "npm run build",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "echo 'Angular dev server will be configured after Angular installation'",
+    "dev:frontend": "cd frontend && npm start",
     "test:backend": "cd backend && npm test",
-    "clean": "rm -rf dist && cd backend && npm run clean",
-    "install:backend": "cd backend && npm install",
+    "test:frontend": "cd frontend && npm test",
+    "clean": "rm -rf dist && cd backend && npm run clean && cd ../frontend && rm -rf dist",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "vercel-build": "npm run build:backend"
   },
   "keywords": [
@@ -30,5 +32,11 @@
   "license": "ISC",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "rxjs": "^7.8.2"
   }
 }

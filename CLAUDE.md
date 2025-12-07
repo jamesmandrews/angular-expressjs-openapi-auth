@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-This is a **monorepo** containing both an Angular 19 frontend and Express.js backend, configured for deployment as a single Vercel project.
+This is a **monorepo** containing an Angular 18 frontend and Express.js backend, configured for deployment as a single Vercel project.
 
 ```
 /
@@ -15,42 +15,63 @@ This is a **monorepo** containing both an Angular 19 frontend and Express.js bac
 │   │   ├── app.ts              # Express app factory (createApp())
 │   │   ├── server.ts           # Development server (not used in production)
 │   │   ├── controllers/        # OpenAPI operation handlers
-│   │   │   └── auth/           # Authentication controllers
+│   │   │   └── auth/           # Authentication controllers (including 2fa/)
 │   │   ├── middleware/         # Auth, security, error handling
 │   │   ├── auth/               # Pluggable auth providers
 │   │   ├── db/                 # Database connection and schema
 │   │   ├── email/              # Pluggable email providers
-│   │   ├── models/             # Data models (userStore, tokenStore)
+│   │   ├── models/             # Data models (userStore, tokenStore, auditLogStore)
 │   │   ├── types/              # TypeScript type definitions
-│   │   └── utils/              # Logger, password, JWT, shortId helpers
+│   │   └── utils/              # Logger, password, JWT, TOTP, shortId helpers
 │   ├── openapi.yaml            # OpenAPI specification
 │   ├── tests/                  # Jest tests
 │   ├── package.json            # Backend dependencies
 │   └── tsconfig.json           # Backend TypeScript config
+├── frontend/                   # Angular 18 application
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── core/           # Services, guards, interceptors
+│   │   │   │   ├── services/   # AuthService with signals
+│   │   │   │   ├── guards/     # Route guards (auth, guest, 2fa)
+│   │   │   │   └── interceptors/ # HTTP interceptors
+│   │   │   ├── features/       # Feature modules
+│   │   │   │   ├── auth/       # Login, register, 2FA verify components
+│   │   │   │   └── dashboard/  # Dashboard component
+│   │   │   └── shared/         # Shared models, components
+│   │   └── environments/       # Environment configs
+│   ├── proxy.conf.json         # Dev proxy to backend API
+│   ├── angular.json            # Angular CLI config
+│   ├── package.json            # Frontend dependencies
+│   └── tsconfig.json           # Frontend TypeScript config
 ├── rests/                      # REST Client test files
-│   ├── auth.rest               # Authentication endpoint tests
+│   ├── *.rest                  # Endpoint test files
 │   └── .env.example            # Token storage template
-├── src/                        # Angular 19 application (to be installed)
 ├── dist/                       # Build output
 │   └── backend/                # Compiled Express code
 ├── docker-compose.yml          # PostgreSQL database container
 ├── package.json                # Root workspace package.json
 ├── vercel.json                 # Vercel routing configuration
-└── tsconfig.json               # Root TypeScript config (when Angular is added)
+└── tsconfig.json               # Root TypeScript config
 ```
 
 ## Build and Run Commands
 
 ### Root Level (Monorepo)
-- **Build All**: `npm run build` - Builds backend (frontend when added)
+- **Build All**: `npm run build` - Builds backend and frontend
 - **Build Backend**: `npm run build:backend` - Compile backend TypeScript to `dist/backend/`
-- **Build Frontend**: `npm run build:frontend` - (To be configured with Angular)
+- **Build Frontend**: `npm run build:frontend` - Build Angular app to `frontend/dist/`
+- **Dev Both**: `npm run dev` - Run backend and frontend concurrently
 - **Clean**: `npm run clean` - Remove all build artifacts
 
 ### Backend Development
-- **Development**: `npm run dev:backend` - Hot-reloading server using nodemon and ts-node
+- **Development**: `npm run dev:backend` - Hot-reloading server on port 3000
 - **Test**: `npm run test:backend` - Run Jest tests
 - **Direct**: `cd backend && npm run dev` - Run backend server directly
+
+### Frontend Development
+- **Development**: `npm run dev:frontend` - Run Angular dev server on port 4200
+- **Direct**: `cd frontend && npm start` - Run frontend directly
+- **Proxy**: Dev server proxies `/api/*` to backend at `http://localhost:3000`
 
 ### Database
 - **Start PostgreSQL**: `docker-compose up -d` - Start PostgreSQL container
@@ -114,6 +135,17 @@ User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 | POST | `/auth/reset-password` | No | Reset password with token |
 | POST | `/auth/verify-email` | No | Verify email with token |
 | POST | `/auth/resend-verification` | Yes | Resend verification email |
+
+### Two-Factor Authentication (`/api/v1/auth/2fa/*`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/auth/2fa/setup` | Yes | Generate TOTP secret and QR code |
+| POST | `/auth/2fa/verify-setup` | Yes | Verify TOTP code to activate 2FA |
+| POST | `/auth/2fa/verify` | Partial | Verify TOTP during login (2FA pending token) |
+| POST | `/auth/2fa/disable` | Yes | Disable 2FA (requires password + TOTP) |
+| GET | `/auth/2fa/backup-codes` | Yes | Get remaining backup code count |
+| POST | `/auth/2fa/backup-codes/regenerate` | Yes | Generate new backup codes |
 
 ### Health (`/api/v1/health`)
 
@@ -221,6 +253,59 @@ All errors follow the schema defined in `backend/openapi.yaml`:
 }
 ```
 
+## Angular Frontend
+
+### Architecture
+
+The Angular 18 frontend uses:
+- **Standalone components** - No NgModules, components are self-contained
+- **Angular Signals** - Reactive state management without RxJS BehaviorSubjects
+- **Functional guards and interceptors** - Modern Angular patterns
+- **Lazy loading** - Components loaded on demand via `loadComponent()`
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/app/core/services/auth.service.ts` | Auth state (signals), API calls, token management |
+| `frontend/src/app/core/interceptors/auth.interceptor.ts` | Adds Bearer token, handles 401 refresh |
+| `frontend/src/app/core/guards/auth.guard.ts` | Route guards (authGuard, guestGuard, twoFactorGuard) |
+| `frontend/src/app/shared/models/auth.model.ts` | TypeScript interfaces matching backend types |
+| `frontend/proxy.conf.json` | Dev proxy config for API requests |
+
+### Auth Service Signals
+
+```typescript
+// Reactive state via signals
+readonly currentUser = computed(() => this.currentUserSignal());
+readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
+readonly twoFactorPending = computed(() => this.twoFactorPendingSignal());
+```
+
+### Route Guards
+
+- `authGuard` - Requires authenticated user, redirects to login
+- `guestGuard` - Requires unauthenticated user, redirects to dashboard
+- `twoFactorGuard` - Requires 2FA pending state (mid-login flow)
+
+### Environment Configuration
+
+Development (`environment.ts`):
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: '/api/v1',  // Proxied to backend
+};
+```
+
+Production (`environment.production.ts`):
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: '/api/v1',  // Same origin
+};
+```
+
 ## Testing Endpoints
 
 Use VS Code REST Client extension with `rests/auth.rest`:
@@ -271,6 +356,12 @@ Use VS Code REST Client extension with `rests/auth.rest`:
 - **Use app passwords for Gmail SMTP** - regular passwords won't work
 - **Tokens in `rests/.env` are gitignored** - safe to store for testing
 
+### Frontend
+- **Not in npm workspaces** - frontend has its own node_modules to avoid rxjs conflicts
+- **Proxy in dev mode** - `/api/*` proxied to `http://localhost:3000` via proxy.conf.json
+- **Explicit type annotations** - RxJS tap callbacks need explicit types to avoid `unknown` inference
+- **Signals over BehaviorSubjects** - Use Angular Signals for state management
+
 ## Configuration Reference
 
 See `backend/.env.example` for all configuration options:
@@ -287,3 +378,7 @@ See `backend/.env.example` for all configuration options:
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `CORS_ALLOWED_ORIGINS` | localhost | Comma-separated origins |
 | `RATE_LIMIT_*` | - | Rate limiting config |
+| `TOTP_ISSUER` | MyApp | Name shown in authenticator apps |
+| `TOTP_WINDOW` | 1 | Accept codes ±1 time step (30 sec) |
+| `AUDIT_LOG_ENABLED` | true | Enable audit logging |
+| `AUDIT_LOG_RETENTION_DAYS` | 90 | Days to keep audit logs |

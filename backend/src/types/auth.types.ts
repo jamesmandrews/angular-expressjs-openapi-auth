@@ -16,6 +16,7 @@ export interface UserPublic {
   lastName?: string;
   emailVerified: boolean;
   roles: string[];
+  scopes: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,11 +65,12 @@ export interface PasswordResetToken {
 export interface JwtPayload {
   sub: string; // user id
   email: string;
+  scopes: string[];
   iat: number;
   exp: number;
 }
 
-export function toUserPublic(user: User, roles: string[] = []): UserPublic {
+export function toUserPublic(user: User, roles: string[] = [], scopes: string[] = []): UserPublic {
   return {
     id: user.id,
     email: user.email,
@@ -76,6 +78,7 @@ export function toUserPublic(user: User, roles: string[] = []): UserPublic {
     lastName: user.lastName,
     emailVerified: user.emailVerified,
     roles,
+    scopes,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

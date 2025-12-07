@@ -8,7 +8,11 @@ import { ErrorResponse } from '../types/common.types';
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: {
+        id: string;
+        email: string;
+        scopes: string[];
+      };
     }
   }
 }
@@ -53,6 +57,33 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
         };
         res.status(401).json(errorResponse);
         return;
+      }
+
+      // Extract required scopes from OpenAPI security requirements
+      // Format: security: [{bearerAuth: ['profile:read', 'profile:write']}]
+      const requiredScopes = securityRequirements
+        .filter((requirement: Record<string, string[]>) => 'bearerAuth' in requirement)
+        .flatMap((requirement: Record<string, string[]>) => requirement.bearerAuth || []);
+
+      // Validate scopes if any are required
+      if (requiredScopes.length > 0) {
+        const userScopes = authResult.user?.scopes || [];
+        const missingScopes = requiredScopes.filter((scope: string) => !userScopes.includes(scope));
+
+        if (missingScopes.length > 0) {
+          const errorResponse: ErrorResponse = {
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Insufficient permissions',
+              details: [{
+                field: 'scopes',
+                message: `Missing required scopes: ${missingScopes.join(', ')}`,
+              }],
+            },
+          };
+          res.status(403).json(errorResponse);
+          return;
+        }
       }
 
       // Attach user info to request for use in controllers

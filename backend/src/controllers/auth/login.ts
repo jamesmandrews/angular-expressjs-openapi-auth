@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { roleStore } from '../../models/roleStore';
+import { scopeStore } from '../../models/scopeStore';
 import { verifyPassword } from '../../utils/password';
 import { generateAccessToken } from '../../utils/jwt';
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
@@ -36,16 +37,17 @@ export default async function login(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Generate access token
-    const { token, expiresIn } = generateAccessToken(user.id, user.email);
-
-    // Get user roles
+    // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(user.id);
     const roleNames = userRoles.map(r => r.name);
+    const userScopes = await scopeStore.getUserScopes(user.id);
+
+    // Generate access token with scopes
+    const { token, expiresIn } = generateAccessToken(user.id, user.email, userScopes);
 
     res.status(200).json({
       data: {
-        user: toUserPublic(user, roleNames),
+        user: toUserPublic(user, roleNames, userScopes),
         tokens: {
           accessToken: token,
           expiresIn,

@@ -97,8 +97,39 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id)
   `);
 
+  // Create scopes table
+  await query(`
+    CREATE TABLE IF NOT EXISTS scopes (
+      id VARCHAR(22) PRIMARY KEY,
+      name VARCHAR(100) UNIQUE NOT NULL,
+      description VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create role_scopes junction table (many-to-many)
+  await query(`
+    CREATE TABLE IF NOT EXISTS role_scopes (
+      role_id VARCHAR(22) NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+      scope_id VARCHAR(22) NOT NULL REFERENCES scopes(id) ON DELETE CASCADE,
+      assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (role_id, scope_id)
+    )
+  `);
+
+  // Create indexes for role_scopes lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_role_scopes_role_id ON role_scopes(role_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_role_scopes_scope_id ON role_scopes(scope_id)
+  `);
+
   // Seed default roles if they don't exist
   await seedDefaultRoles();
+
+  // Seed default scopes and role-scope mappings
+  await seedDefaultScopes();
 
   logger.info('Database schema initialized successfully');
 }
@@ -117,6 +148,83 @@ async function seedDefaultRoles(): Promise<void> {
        ON CONFLICT (name) DO NOTHING`,
       [role.id, role.name, role.description]
     );
+  }
+}
+
+// Scope IDs for reference
+const SCOPE_IDS = {
+  PROFILE_READ: '0000000000000000000101',
+  PROFILE_WRITE: '0000000000000000000102',
+  USERS_READ: '0000000000000000000103',
+  USERS_WRITE: '0000000000000000000104',
+  USERS_DELETE: '0000000000000000000105',
+  ADMIN_USERS: '0000000000000000000106',
+  ADMIN_ROLES: '0000000000000000000107',
+  ADMIN_SCOPES: '0000000000000000000108',
+} as const;
+
+// Role IDs for reference
+const ROLE_IDS = {
+  ADMIN: '0000000000000000000001',
+  USER: '0000000000000000000002',
+  MODERATOR: '0000000000000000000003',
+} as const;
+
+async function seedDefaultScopes(): Promise<void> {
+  const defaultScopes = [
+    { id: SCOPE_IDS.PROFILE_READ, name: 'profile:read', description: 'Read own profile' },
+    { id: SCOPE_IDS.PROFILE_WRITE, name: 'profile:write', description: 'Update own profile' },
+    { id: SCOPE_IDS.USERS_READ, name: 'users:read', description: 'View user profiles' },
+    { id: SCOPE_IDS.USERS_WRITE, name: 'users:write', description: 'Modify users' },
+    { id: SCOPE_IDS.USERS_DELETE, name: 'users:delete', description: 'Delete users' },
+    { id: SCOPE_IDS.ADMIN_USERS, name: 'admin:users', description: 'Full user management' },
+    { id: SCOPE_IDS.ADMIN_ROLES, name: 'admin:roles', description: 'Role management' },
+    { id: SCOPE_IDS.ADMIN_SCOPES, name: 'admin:scopes', description: 'Scope management' },
+  ];
+
+  // Insert scopes
+  for (const scope of defaultScopes) {
+    await query(
+      `INSERT INTO scopes (id, name, description)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (name) DO NOTHING`,
+      [scope.id, scope.name, scope.description]
+    );
+  }
+
+  // Define role-scope mappings
+  const roleScopeMappings: { roleId: string; scopeIds: string[] }[] = [
+    {
+      roleId: ROLE_IDS.ADMIN,
+      scopeIds: Object.values(SCOPE_IDS), // Admin gets all scopes
+    },
+    {
+      roleId: ROLE_IDS.MODERATOR,
+      scopeIds: [
+        SCOPE_IDS.PROFILE_READ,
+        SCOPE_IDS.PROFILE_WRITE,
+        SCOPE_IDS.USERS_READ,
+      ],
+    },
+    {
+      roleId: ROLE_IDS.USER,
+      scopeIds: [
+        SCOPE_IDS.PROFILE_READ,
+        SCOPE_IDS.PROFILE_WRITE,
+      ],
+    },
+  ];
+
+  // Insert role-scope mappings
+  for (const mapping of roleScopeMappings) {
+    for (const scopeId of mapping.scopeIds) {
+      await query(
+        `INSERT INTO role_scopes (role_id, scope_id)
+         VALUES ($1, $2)
+         ON CONFLICT (role_id, scope_id) DO NOTHING`,
+        [mapping.roleId, scopeId]
+      );
+    }
   }
 }
 

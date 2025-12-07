@@ -243,7 +243,8 @@ paths:
       operationId: authMe
       x-eov-operation-handler: auth/me
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - profile:read
       responses:
         '200':
           description: Current user profile
@@ -256,6 +257,8 @@ paths:
                     $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
     patch:
@@ -266,7 +269,8 @@ paths:
       operationId: authUpdateProfile
       x-eov-operation-handler: auth/updateProfile
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - profile:write
       requestBody:
         required: true
         content:
@@ -288,6 +292,8 @@ paths:
                     $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -302,7 +308,8 @@ paths:
       operationId: authChangePassword
       x-eov-operation-handler: auth/changePassword
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - profile:write
       requestBody:
         required: true
         content:
@@ -330,6 +337,8 @@ paths:
                 error:
                   code: INVALID_PASSWORD
                   message: Current password is incorrect
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -495,6 +504,18 @@ components:
           description: Whether the user's email has been verified
           default: false
           example: true
+        roles:
+          type: array
+          items:
+            type: string
+          description: User's assigned roles
+          example: ['user']
+        scopes:
+          type: array
+          items:
+            type: string
+          description: User's effective scopes (derived from roles)
+          example: ['profile:read', 'profile:write']
         createdAt:
           type: string
           format: date-time
@@ -713,6 +734,20 @@ components:
             error:
               code: UNAUTHORIZED
               message: Authentication is required to access this resource
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Insufficient permissions
+              details:
+                - field: scopes
+                  message: "Missing required scopes: profile:write"
 
     BadRequest:
       description: Bad request - invalid input

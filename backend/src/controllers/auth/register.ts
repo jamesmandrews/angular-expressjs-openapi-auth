@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { emailVerificationTokenStore } from '../../models/tokenStore';
 import { roleStore, ROLE_IDS } from '../../models/roleStore';
+import { scopeStore } from '../../models/scopeStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
 import { generateAccessToken } from '../../utils/jwt';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
@@ -72,16 +73,17 @@ export default async function register(req: Request, res: Response, next: NextFu
       logger.error(`Failed to send verification email to ${email}`, { error: result.error });
     }
 
-    // Generate access token
-    const { token, expiresIn } = generateAccessToken(user.id, user.email);
-
-    // Get user roles
+    // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(user.id);
     const roleNames = userRoles.map(r => r.name);
+    const userScopes = await scopeStore.getUserScopes(user.id);
+
+    // Generate access token with scopes
+    const { token, expiresIn } = generateAccessToken(user.id, user.email, userScopes);
 
     res.status(201).json({
       data: {
-        user: toUserPublic(user, roleNames),
+        user: toUserPublic(user, roleNames, userScopes),
         tokens: {
           accessToken: token,
           expiresIn,

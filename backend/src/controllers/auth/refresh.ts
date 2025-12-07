@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { generateAccessToken, decodeToken, shouldRefreshToken } from '../../utils/jwt';
+import { scopeStore } from '../../models/scopeStore';
 
 export default async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -40,8 +41,11 @@ export default async function refresh(req: Request, res: Response, next: NextFun
       }
     }
 
-    // Generate new access token
-    const { token, expiresIn } = generateAccessToken(user.id, user.email);
+    // Re-fetch scopes from database (they may have changed since token was issued)
+    const userScopes = await scopeStore.getUserScopes(user.id);
+
+    // Generate new access token with fresh scopes
+    const { token, expiresIn } = generateAccessToken(user.id, user.email, userScopes);
 
     res.status(200).json({
       accessToken: token,

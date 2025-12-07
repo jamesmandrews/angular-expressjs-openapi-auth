@@ -1,6 +1,6 @@
 # Angular + Express.js Authentication System
 
-A full-stack authentication application with an Angular 18 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.
+A full-stack authentication application with an Angular 19 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.
 
 ## Features
 
@@ -33,7 +33,7 @@ A full-stack authentication application with an Angular 18 frontend and Express.
 ## Tech Stack
 
 ### Frontend
-- **Angular 18** with standalone components
+- **Angular 19** with standalone components
 - **Angular Signals** for reactive state management
 - **RxJS** for HTTP operations
 - TypeScript
@@ -119,7 +119,7 @@ Open http://localhost:4200 in your browser.
 │   ├── openapi.yaml            # API specification
 │   └── tests/                  # Jest tests
 │
-├── frontend/                   # Angular 18 application
+├── frontend/                   # Angular 19 application
 │   ├── src/app/
 │   │   ├── core/
 │   │   │   ├── services/       # AuthService with signals
@@ -236,9 +236,9 @@ SMTP_FROM=noreply@example.com
 | `/verify-email-pending` | Pending verification | Unverified users |
 | `/2fa-verify` | 2FA code entry | 2FA pending |
 | `/dashboard` | Main dashboard | Verified users |
-| `/settings/profile` | Profile settings | Verified users |
-| `/settings/password` | Change password | Verified users |
-| `/settings/2fa` | 2FA management | Verified users |
+| `/account/profile` | Profile settings | Verified users |
+| `/account/password` | Change password | Verified users |
+| `/account/2fa` | 2FA management | Verified users |
 
 ## Architecture Highlights
 

@@ -3,7 +3,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: string;
+  userType?: string;
   emailVerified: boolean;
   twoFactorEnabled: boolean;
   roles: string[];

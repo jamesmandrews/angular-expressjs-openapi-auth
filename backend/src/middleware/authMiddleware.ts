@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import YAML from 'yamljs';
-import path from 'path';
 import { AuthProvider } from '../auth/authProvider';
 import { ErrorResponse } from '../types/common.types';
+import { resolveOpenApiPath } from '../utils/paths';
 
 // Extend Express Request to include user info
 declare global {
@@ -27,7 +27,7 @@ declare global {
  */
 export function createAuthMiddleware(authProvider: AuthProvider) {
   // Load OpenAPI spec to determine which routes need auth
-  const apiSpecPath = path.join(__dirname, '..', '..', 'openapi.yaml');
+  const apiSpecPath = resolveOpenApiPath(__dirname);
   const apiSpec = YAML.load(apiSpecPath);
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {

@@ -6,19 +6,23 @@ import { createAuthMiddleware } from './middleware/authMiddleware';
 import {
   configureHelmet,
   createCorsMiddleware,
-  createRateLimiter,
+  createOpenApiRateLimiter,
   requestLogger,
 } from './middleware/security';
 import { JwtAuthProvider } from './auth/providers/jwtAuth';
 import logger from './utils/logger';
+import { resolveOpenApiPath } from './utils/paths';
 
 export function createApp(): Application {
   const app = express();
 
+  // Serve OpenAPI spec path (used by rate limiter and validator)
+  const apiSpecPath = resolveOpenApiPath(__dirname);
+
   // Security middleware
   app.use(configureHelmet()); // Security headers
   app.use(createCorsMiddleware()); // Dynamic CORS
-  app.use(createRateLimiter()); // Rate limiting
+  app.use(createOpenApiRateLimiter(apiSpecPath)); // OpenAPI-aware rate limiting
   app.use(requestLogger); // HTTP request logging
 
   // Body parsing middleware with size limits
@@ -33,8 +37,7 @@ export function createApp(): Application {
   // Apply authentication middleware BEFORE OpenAPI validator
   app.use(createAuthMiddleware(authProvider));
 
-  // Serve OpenAPI spec
-  const apiSpecPath = path.join(__dirname, '..', 'openapi.yaml');
+  // Controller handlers path
   const operationHandlersPath = path.join(__dirname, 'controllers');
 
   // OpenAPI validator middleware with automatic operation handlers

@@ -33,6 +33,9 @@ paths:
       description: Creates a new user account with email and password
       operationId: authRegister
       x-eov-operation-handler: auth/register
+      x-rate-limit:
+        max: 5
+        windowMs: 900000  # 15 minutes - strict limit for registration
       requestBody:
         required: true
         content:
@@ -71,6 +74,9 @@ paths:
       description: Authenticates a user and returns access and refresh tokens
       operationId: authLogin
       x-eov-operation-handler: auth/login
+      x-rate-limit:
+        max: 5
+        windowMs: 900000  # 15 minutes - strict limit for login attempts
       requestBody:
         required: true
         content:
@@ -148,7 +154,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tokens:
+                        $ref: '#/components/schemas/TokenResponse'
+                  refreshed:
+                    type: boolean
+                    description: Whether a new token was issued
+                  message:
+                    type: string
+                    description: Status message (present when token is still fresh)
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -162,6 +180,9 @@ paths:
       description: Sends a password reset email to the user. Always returns success to prevent email enumeration.
       operationId: authForgotPassword
       x-eov-operation-handler: auth/forgotPassword
+      x-rate-limit:
+        max: 3
+        windowMs: 3600000  # 1 hour - very strict for password reset requests
       requestBody:
         required: true
         content:
@@ -204,6 +225,9 @@ paths:
       description: Resets the user's password using a valid reset token
       operationId: authResetPassword
       x-eov-operation-handler: auth/resetPassword
+      x-rate-limit:
+        max: 5
+        windowMs: 900000  # 15 minutes - strict limit for password reset
       requestBody:
         required: true
         content:
@@ -600,6 +624,9 @@ paths:
         Returns a full access token upon successful verification.
       operationId: auth2FAVerify
       x-eov-operation-handler: auth/2fa/verify
+      x-rate-limit:
+        max: 5
+        windowMs: 900000  # 15 minutes - strict limit for 2FA verification
       security:
         - bearerAuth: []
       requestBody:

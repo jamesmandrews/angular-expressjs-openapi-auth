@@ -31,9 +31,13 @@ export default async function refresh(req: Request, res: Response, next: NextFun
           // Token is still fresh, return current token info
           const remainingSeconds = payload.exp - Math.floor(Date.now() / 1000);
           res.status(200).json({
-            accessToken: currentToken,
-            expiresIn: remainingSeconds,
-            tokenType: 'Bearer',
+            data: {
+              tokens: {
+                accessToken: currentToken,
+                expiresIn: remainingSeconds,
+                tokenType: 'Bearer',
+              },
+            },
             refreshed: false,
             message: `Token is still fresh (${elapsedPercent}% elapsed, threshold is ${thresholdPercent}%)`,
           });
@@ -51,9 +55,13 @@ export default async function refresh(req: Request, res: Response, next: NextFun
     const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
 
     res.status(200).json({
-      accessToken: token,
-      expiresIn,
-      tokenType: 'Bearer',
+      data: {
+        tokens: {
+          accessToken: token,
+          expiresIn,
+          tokenType: 'Bearer',
+        },
+      },
       refreshed: true,
     });
   } catch (error) {

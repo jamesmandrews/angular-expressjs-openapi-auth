@@ -28,7 +28,7 @@ export class AuthService {
   // Signals for reactive state
   private currentUserSignal = signal<User | null>(this.getStoredUser());
   private isAuthenticatedSignal = signal<boolean>(this.hasValidToken());
-  private twoFactorPendingSignal = signal<boolean>(false);
+  private twoFactorPendingSignal = signal<boolean>(this.checkTwoFactorPending());
 
   // Public computed signals
   readonly currentUser = computed(() => this.currentUserSignal());
@@ -135,20 +135,20 @@ export class AuthService {
 
   // ==================== Profile ====================
 
-  getProfile(): Observable<{ data: { user: User } }> {
-    return this.http.get<{ data: { user: User } }>(`${this.apiUrl}/auth/me`).pipe(
-      tap((response: { data: { user: User } }) => {
-        this.currentUserSignal.set(response.data.user);
-        this.storeUser(response.data.user);
+  getProfile(): Observable<{ data: User }> {
+    return this.http.get<{ data: User }>(`${this.apiUrl}/auth/me`).pipe(
+      tap((response: { data: User }) => {
+        this.currentUserSignal.set(response.data);
+        this.storeUser(response.data);
       })
     );
   }
 
-  updateProfile(data: Partial<User>): Observable<{ data: { user: User }; message: string }> {
-    return this.http.patch<{ data: { user: User }; message: string }>(`${this.apiUrl}/auth/me`, data).pipe(
-      tap((response: { data: { user: User }; message: string }) => {
-        this.currentUserSignal.set(response.data.user);
-        this.storeUser(response.data.user);
+  updateProfile(data: Partial<User>): Observable<{ data: User; message: string }> {
+    return this.http.patch<{ data: User; message: string }>(`${this.apiUrl}/auth/me`, data).pipe(
+      tap((response: { data: User; message: string }) => {
+        this.currentUserSignal.set(response.data);
+        this.storeUser(response.data);
       })
     );
   }
@@ -203,6 +203,20 @@ export class AuthService {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const exp = payload.exp * 1000;
       return Date.now() < exp;
+    } catch {
+      return false;
+    }
+  }
+
+  private checkTwoFactorPending(): boolean {
+    const token = this.getAccessToken();
+    if (!token) return false;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000;
+      // Token must be valid and have twoFactorPending flag
+      return Date.now() < exp && payload.twoFactorPending === true;
     } catch {
       return false;
     }

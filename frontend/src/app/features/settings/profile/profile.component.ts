@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, TitleCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { HeaderComponent } from '../../../shared/components/header/header.component';
@@ -38,8 +38,8 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
               <span class="value">{{ user()?.lastName || '—' }}</span>
             </div>
             <div class="info-row">
-              <span class="label">User Type</span>
-              <span class="value">{{ user()?.userType }}</span>
+              <span class="label">Account Type</span>
+              <span class="value">{{ user()?.roles?.[0] || 'user' | titlecase }}</span>
             </div>
             <div class="info-row">
               <span class="label">Member Since</span>

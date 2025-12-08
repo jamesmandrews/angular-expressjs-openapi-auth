@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
-import { verifyPassword, hashPassword } from '../../utils/password';
+import { verifyPassword, hashPassword, validatePasswordStrength } from '../../utils/password';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
 
@@ -51,6 +51,20 @@ export default async function changePassword(req: Request, res: Response, next: 
         },
       };
       res.status(401).json(errorResponse);
+      return;
+    }
+
+    // Validate new password strength
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.valid) {
+      const errorResponse: ErrorResponse = {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'New password does not meet security requirements',
+          details: [{ field: 'newPassword', message: passwordValidation.message || 'Invalid password' }],
+        },
+      };
+      res.status(422).json(errorResponse);
       return;
     }
 

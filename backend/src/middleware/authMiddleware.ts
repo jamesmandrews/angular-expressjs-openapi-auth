@@ -33,12 +33,9 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Find the matching route in OpenAPI spec
-      const securityRequirements = getSecurityRequirementsForRoute(
-        apiSpec,
-        req.method,
-        req.path
-      );
+      // Find the matching operation in OpenAPI spec
+      const operationInfo = getOperationInfo(apiSpec, req.method, req.path);
+      const securityRequirements = operationInfo.security;
 
       // If no security requirements, allow access
       if (!securityRequirements || securityRequirements.length === 0) {
@@ -84,19 +81,8 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
       }
 
       // Check if unverified email is trying to access restricted endpoints
-      // Format: { path, method } - explicit method checking to prevent bypasses
-      const unverifiedAllowedEndpoints = [
-        { path: '/auth/me', method: 'GET' },     // Read-only profile access
-        { path: '/auth/logout', method: 'POST' },
-        { path: '/auth/verify-email', method: 'POST' },
-        { path: '/auth/resend-verification', method: 'POST' },
-      ];
-
-      const isUnverifiedAllowed = unverifiedAllowedEndpoints.some(
-        e => req.path.endsWith(e.path) && req.method === e.method
-      );
-
-      if (authResult.user && authResult.user.emailVerified === false && !isUnverifiedAllowed) {
+      // Uses x-allow-unverified-email extension from OpenAPI spec
+      if (authResult.user && authResult.user.emailVerified === false && !operationInfo.allowUnverifiedEmail) {
         const errorResponse: ErrorResponse = {
           error: {
             code: 'EMAIL_NOT_VERIFIED',
@@ -144,14 +130,20 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
   };
 }
 
+interface OperationInfo {
+  security: any[] | null;
+  allowUnverifiedEmail: boolean;
+}
+
 /**
- * Find security requirements for a specific route in the OpenAPI spec
+ * Find operation info for a specific route in the OpenAPI spec
+ * Returns security requirements and custom extensions
  */
-function getSecurityRequirementsForRoute(
+function getOperationInfo(
   apiSpec: any,
   method: string,
   path: string
-): any[] | null {
+): OperationInfo {
   // Normalize path - remove query string and convert path parameters
   const cleanPath = path.split('?')[0];
   const apiPath = cleanPath.replace(/^\/api\/v1/, ''); // Remove base path
@@ -169,7 +161,10 @@ function getSecurityRequirementsForRoute(
     }
   }
 
-  return operation?.security || null;
+  return {
+    security: operation?.security || null,
+    allowUnverifiedEmail: operation?.['x-allow-unverified-email'] === true,
+  };
 }
 
 /**

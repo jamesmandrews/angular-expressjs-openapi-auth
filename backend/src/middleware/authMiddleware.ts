@@ -84,16 +84,17 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
       }
 
       // Check if unverified email is trying to access restricted endpoints
-      const unverifiedAllowedPaths = [
-        '/auth/me',              // User needs to see their status
-        '/auth/logout',          // User can logout
-        '/auth/verify-email',    // Required for verification flow
-        '/auth/resend-verification',
-        '/auth/2fa/setup',       // Allow 2FA setup
-        '/auth/2fa/verify-setup',
+      // Format: { path, method } - explicit method checking to prevent bypasses
+      const unverifiedAllowedEndpoints = [
+        { path: '/auth/me', method: 'GET' },     // Read-only profile access
+        { path: '/auth/logout', method: 'POST' },
+        { path: '/auth/verify-email', method: 'POST' },
+        { path: '/auth/resend-verification', method: 'POST' },
       ];
 
-      const isUnverifiedAllowed = unverifiedAllowedPaths.some(p => req.path.endsWith(p));
+      const isUnverifiedAllowed = unverifiedAllowedEndpoints.some(
+        e => req.path.endsWith(e.path) && req.method === e.method
+      );
 
       if (authResult.user && authResult.user.emailVerified === false && !isUnverifiedAllowed) {
         const errorResponse: ErrorResponse = {

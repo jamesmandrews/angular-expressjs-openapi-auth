@@ -249,20 +249,22 @@ export class AuthService {
   }
 
   private clearAuth(): void {
-    // Clear localStorage
+    // Clear localStorage auth items
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
 
-    // Clear sessionStorage (in case any auth data was stored there)
-    sessionStorage.clear();
+    // Clear sessionStorage auth items (not all - only auth-related keys)
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
 
-    // Clear any auth-related cookies by expiring them
-    document.cookie.split(';').forEach((cookie) => {
-      const name = cookie.split('=')[0].trim();
-      if (name) {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      }
+    // Clear only auth-related cookies (not all cookies)
+    const authCookieNames = [ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, 'session', 'auth'];
+    authCookieNames.forEach((name) => {
+      // Clear for current path and root path
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${window.location.pathname};`;
     });
 
     // Reset signals

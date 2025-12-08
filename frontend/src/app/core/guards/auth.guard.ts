@@ -6,8 +6,15 @@ export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isAuthenticated()) {
+  // User must be authenticated AND not in 2FA pending state
+  if (authService.isAuthenticated() && !authService.twoFactorPending()) {
     return true;
+  }
+
+  // If 2FA is pending, redirect to 2FA verification
+  if (authService.twoFactorPending()) {
+    router.navigate(['/2fa-verify']);
+    return false;
   }
 
   router.navigate(['/login']);
@@ -18,7 +25,8 @@ export const guestGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (!authService.isAuthenticated()) {
+  // Allow access if not authenticated OR if 2FA is pending (mid-login flow)
+  if (!authService.isAuthenticated() || authService.twoFactorPending()) {
     return true;
   }
 
@@ -42,7 +50,8 @@ export const emailVerifiedGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (!authService.isAuthenticated()) {
+  // Must be fully authenticated (not 2FA pending)
+  if (!authService.isAuthenticated() || authService.twoFactorPending()) {
     router.navigate(['/login']);
     return false;
   }
@@ -60,7 +69,8 @@ export const emailNotVerifiedGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (!authService.isAuthenticated()) {
+  // Must be fully authenticated (not 2FA pending)
+  if (!authService.isAuthenticated() || authService.twoFactorPending()) {
     router.navigate(['/login']);
     return false;
   }

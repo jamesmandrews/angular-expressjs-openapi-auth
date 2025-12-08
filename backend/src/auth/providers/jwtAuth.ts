@@ -60,6 +60,7 @@ export class JwtAuthProvider implements AuthProvider {
         scopes: decoded.scopes || [],
         twoFactorPending: decoded.twoFactorPending,
         twoFactorVerified: decoded.twoFactorVerified,
+        emailVerified: user.emailVerified,
       },
     };
   }

@@ -15,6 +15,7 @@ declare global {
         scopes: string[];
         twoFactorPending?: boolean;
         twoFactorVerified?: boolean;
+        emailVerified?: boolean;
       };
     }
   }
@@ -76,6 +77,29 @@ export function createAuthMiddleware(authProvider: AuthProvider) {
           error: {
             code: '2FA_REQUIRED',
             message: 'Two-factor authentication verification required. Please verify with your authenticator app.',
+          },
+        };
+        res.status(403).json(errorResponse);
+        return;
+      }
+
+      // Check if unverified email is trying to access restricted endpoints
+      const unverifiedAllowedPaths = [
+        '/auth/me',              // User needs to see their status
+        '/auth/logout',          // User can logout
+        '/auth/verify-email',    // Required for verification flow
+        '/auth/resend-verification',
+        '/auth/2fa/setup',       // Allow 2FA setup
+        '/auth/2fa/verify-setup',
+      ];
+
+      const isUnverifiedAllowed = unverifiedAllowedPaths.some(p => req.path.endsWith(p));
+
+      if (authResult.user && authResult.user.emailVerified === false && !isUnverifiedAllowed) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            code: 'EMAIL_NOT_VERIFIED',
+            message: 'Please verify your email address to access this resource.',
           },
         };
         res.status(403).json(errorResponse);

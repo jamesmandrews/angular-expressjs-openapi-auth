@@ -75,8 +75,8 @@ paths:
       operationId: authLogin
       x-eov-operation-handler: auth/login
       x-rate-limit:
-        max: 5
-        windowMs: 900000  # 15 minutes - strict limit for login attempts
+        max: 100
+        windowMs: 900000  # 15 minutes - relaxed for development
       requestBody:
         required: true
         content:

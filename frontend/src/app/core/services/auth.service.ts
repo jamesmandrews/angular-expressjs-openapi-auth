@@ -49,8 +49,9 @@ export class AuthService implements OnDestroy {
     private http: HttpClient,
     private router: Router
   ) {
-    // Try to restore session from cookie on startup
-    this.initializeSession();
+    // Defer session initialization to avoid circular dependency with Router/Guards
+    // This runs after Angular's DI is fully set up
+    setTimeout(() => this.initializeSession(), 0);
   }
 
   ngOnDestroy(): void {

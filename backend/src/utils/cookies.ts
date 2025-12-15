@@ -20,8 +20,8 @@ export function setRefreshTokenCookie(res: Response, token: string): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, {
     httpOnly: true,                    // Not accessible via JavaScript
     secure: isProduction(),            // HTTPS only in production
-    sameSite: 'strict',                // Prevent CSRF
-    path: '/api/v1/auth',              // Only sent to auth endpoints
+    sameSite: isProduction() ? 'strict' : 'lax', // Lax in dev for proxy compatibility
+    path: '/api/v1',                   // Sent to all API endpoints
     maxAge: expirySeconds * 1000,      // Expiry in milliseconds
   });
 }
@@ -33,8 +33,8 @@ export function clearRefreshTokenCookie(res: Response): void {
   res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
     httpOnly: true,
     secure: isProduction(),
-    sameSite: 'strict',
-    path: '/api/v1/auth',
+    sameSite: isProduction() ? 'strict' : 'lax',
+    path: '/api/v1',
   });
 }
 

@@ -51,6 +51,14 @@ export class JwtAuthProvider implements AuthProvider {
       };
     }
 
+    // Verify token salt matches (instant invalidation on logout-all/password-change)
+    if (decoded.jti && user.tokenSalt && decoded.jti !== user.tokenSalt) {
+      return {
+        authenticated: false,
+        error: 'Token has been invalidated',
+      };
+    }
+
     return {
       authenticated: true,
       user: {

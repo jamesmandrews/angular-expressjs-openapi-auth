@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { refreshTokenStore } from '../../models/refreshTokenStore';
+import { userStore } from '../../models/userStore';
 import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
@@ -23,6 +24,9 @@ export default async function logoutAll(req: Request, res: Response, next: NextF
     // Revoke all refresh tokens for this user
     const revokedCount = await refreshTokenStore.revokeAllForUser(userId);
     logger.info(`User ${userId} logged out from all devices. ${revokedCount} sessions revoked.`);
+
+    // Regenerate token salt to invalidate all existing access tokens immediately
+    await userStore.regenerateTokenSalt(userId);
 
     // Clear the current session's refresh token cookie
     clearRefreshTokenCookie(res);

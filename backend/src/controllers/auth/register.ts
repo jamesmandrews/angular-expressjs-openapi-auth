@@ -5,7 +5,7 @@ import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { roleStore, ROLE_IDS } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
-import { generateAccessTokenLegacy } from '../../utils/jwt';
+import { generateAccessToken } from '../../utils/jwt';
 import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
@@ -105,7 +105,14 @@ export default async function register(req: Request, res: Response, next: NextFu
     const userScopes = await scopeStore.getUserScopes(user.id);
 
     // Generate access token with roles and scopes
-    const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+    const token = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      roles: roleNames,
+      scopes: userScopes,
+      jti: user.tokenSalt || undefined,
+    });
+    const expiresIn = parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10);
 
     // Create refresh token and set in HttpOnly cookie
     const refreshToken = await refreshTokenStore.create(user.id, {

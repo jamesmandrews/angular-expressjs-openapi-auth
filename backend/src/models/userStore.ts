@@ -9,6 +9,7 @@ interface UserRow {
   first_name: string | null;
   last_name: string | null;
   email_verified: boolean;
+  token_salt: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -21,6 +22,7 @@ function rowToUser(row: UserRow): User {
     firstName: row.first_name || undefined,
     lastName: row.last_name || undefined,
     emailVerified: row.email_verified,
+    tokenSalt: row.token_salt,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -29,11 +31,12 @@ function rowToUser(row: UserRow): User {
 class UserStore {
   async create(data: RegisterRequest, passwordHash: string): Promise<User> {
     const id = generateShortId();
+    const tokenSalt = generateShortId();
     const rows = await query<UserRow>(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, token_salt)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [id, data.email.toLowerCase(), passwordHash, data.firstName || null, data.lastName || null]
+      [id, data.email.toLowerCase(), passwordHash, data.firstName || null, data.lastName || null, tokenSalt]
     );
     return rowToUser(rows[0]);
   }
@@ -117,6 +120,17 @@ class UserStore {
       values
     );
     return rows[0] ? rowToUser(rows[0]) : undefined;
+  }
+
+  async regenerateTokenSalt(userId: string): Promise<string> {
+    const newSalt = generateShortId();
+    await query(
+      `UPDATE users
+       SET token_salt = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [newSalt, userId]
+    );
+    return newSalt;
   }
 }
 

@@ -34,6 +34,11 @@ export async function initializeDatabase(): Promise<void> {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_verified_at TIMESTAMP WITH TIME ZONE
   `);
 
+  // Add token_salt column for instant access token invalidation
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS token_salt VARCHAR(22)
+  `);
+
   // Create password reset tokens table (with hashed tokens for security)
   await query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (

@@ -116,6 +116,7 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
       email: user.email,
       roles: roleNames,
       scopes: userScopes,
+      jti: user.tokenSalt || undefined,
       twoFactorVerified: true,
     });
 

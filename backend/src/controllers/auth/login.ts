@@ -5,7 +5,7 @@ import { scopeStore } from '../../models/scopeStore';
 import { twoFactorStore } from '../../models/twoFactorStore';
 import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { verifyPassword } from '../../utils/password';
-import { generateAccessTokenLegacy, generateTwoFactorPendingToken } from '../../utils/jwt';
+import { generateAccessToken, generateTwoFactorPendingToken } from '../../utils/jwt';
 import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
@@ -74,7 +74,14 @@ export default async function login(req: Request, res: Response, next: NextFunct
     }
 
     // No 2FA - generate full access token with roles and scopes
-    const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+    const token = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      roles: roleNames,
+      scopes: userScopes,
+      jti: user.tokenSalt || undefined,
+    });
+    const expiresIn = parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10);
 
     // Create refresh token and set in HttpOnly cookie
     const refreshToken = await refreshTokenStore.create(user.id, {

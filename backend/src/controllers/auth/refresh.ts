@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { generateAccessTokenLegacy } from '../../utils/jwt';
+import { generateAccessToken } from '../../utils/jwt';
 import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { userStore } from '../../models/userStore';
@@ -72,7 +72,14 @@ export default async function refresh(req: Request, res: Response, next: NextFun
     const userScopes = await scopeStore.getUserScopes(result.userId);
 
     // Generate new access token with fresh roles and scopes
-    const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+    const token = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      roles: roleNames,
+      scopes: userScopes,
+      jti: user.tokenSalt || undefined,
+    });
+    const expiresIn = parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10);
 
     res.status(200).json({
       data: {

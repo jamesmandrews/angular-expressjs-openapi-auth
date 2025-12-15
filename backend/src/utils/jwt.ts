@@ -24,6 +24,7 @@ export interface GenerateTokenOptions {
   email: string;
   roles?: string[];
   scopes?: string[];
+  jti?: string; // Token salt for instant invalidation
   twoFactorPending?: boolean;
   twoFactorVerified?: boolean;
   expiresIn?: number; // Override default expiry
@@ -37,6 +38,11 @@ export function generateAccessToken(options: GenerateTokenOptions): string {
     roles: options.roles ?? [],
     scopes: options.scopes ?? [],
   };
+
+  // Add jti (token salt) for instant invalidation support
+  if (options.jti) {
+    payload.jti = options.jti;
+  }
 
   // Add 2FA flags if present
   if (options.twoFactorPending !== undefined) {

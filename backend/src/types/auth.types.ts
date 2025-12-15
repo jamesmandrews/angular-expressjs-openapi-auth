@@ -5,6 +5,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   emailVerified: boolean;
+  tokenSalt: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +72,7 @@ export interface JwtPayload {
   scopes: string[];
   iat: number;
   exp: number;
+  jti?: string; // JWT ID - token salt for instant invalidation
   twoFactorPending?: boolean; // True if 2FA verification is required
   twoFactorVerified?: boolean; // True if 2FA was verified this session
 }

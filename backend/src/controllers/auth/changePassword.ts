@@ -79,6 +79,9 @@ export default async function changePassword(req: Request, res: Response, next: 
     const revokedCount = await refreshTokenStore.revokeAllForUser(userId);
     logger.info(`Revoked ${revokedCount} refresh tokens after password change for user ${userId}`);
 
+    // Regenerate token salt to invalidate all existing access tokens immediately
+    await userStore.regenerateTokenSalt(userId);
+
     // Clear the current session's refresh token cookie
     clearRefreshTokenCookie(res);
 

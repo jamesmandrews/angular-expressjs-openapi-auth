@@ -377,6 +377,22 @@ Use VS Code REST Client extension with `rests/auth.rest`:
 - **Explicit type annotations** - RxJS tap callbacks need explicit types to avoid `unknown` inference
 - **Signals over BehaviorSubjects** - Use Angular Signals for state management
 
+## Security Decisions (Accepted Risks)
+
+The following items were reviewed during security audits and determined to be acceptable:
+
+1. **User profile in localStorage** - Non-sensitive profile data (name, email, roles) is cached in localStorage for UX performance. This is NOT a security concern because:
+   - No secrets are stored (access tokens are memory-only, refresh tokens are HttpOnly cookies)
+   - The data is already visible to the user and any authenticated API call
+   - The UX benefit (faster page loads) outweighs the minimal risk
+
+2. **Short-TTL access tokens** - Access tokens with short expiry (5 min default) may briefly remain valid after logout-all or password change. This is NOT a security concern because:
+   - The token salt mechanism (`jti` claim) instantly invalidates all tokens on security events
+   - Even without token salt, 5 minutes is an acceptable window for most threat models
+   - Refresh tokens are immediately revoked, preventing new access tokens
+
+These decisions are documented in `SECURITY.md` and `security_report.md`.
+
 ## Configuration Reference
 
 See `backend/.env.example` for all configuration options:

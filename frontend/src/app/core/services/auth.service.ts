@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, catchError, throwError } from 'rxjs';
@@ -22,8 +22,14 @@ const USER_KEY = 'user';
 @Injectable({
   providedIn: 'root',
 })
-export class AuthService {
+export class AuthService implements OnDestroy {
   private readonly apiUrl = environment.apiUrl;
+
+  // Token refresh configuration
+  private readonly TOKEN_CHECK_INTERVAL_MS = 30000; // Check every 30 seconds
+  private readonly REFRESH_THRESHOLD_PERCENT = 50; // Refresh after 50% of token lifetime
+  private tokenRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private isRefreshing = false;
 
   // Signals for reactive state
   private currentUserSignal = signal<User | null>(this.getStoredUser());
@@ -38,7 +44,16 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private router: Router
-  ) {}
+  ) {
+    // Start token watcher if already authenticated
+    if (this.hasValidToken() && !this.checkTwoFactorPending()) {
+      this.startTokenRefreshWatcher();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.stopTokenRefreshWatcher();
+  }
 
   // ==================== Authentication ====================
 
@@ -222,6 +237,75 @@ export class AuthService {
     }
   }
 
+  // ==================== Proactive Token Refresh ====================
+
+  private startTokenRefreshWatcher(): void {
+    // Don't start if already running
+    if (this.tokenRefreshTimer) return;
+
+    this.tokenRefreshTimer = setInterval(() => {
+      this.checkAndRefreshToken();
+    }, this.TOKEN_CHECK_INTERVAL_MS);
+
+    // Also check immediately
+    this.checkAndRefreshToken();
+  }
+
+  private stopTokenRefreshWatcher(): void {
+    if (this.tokenRefreshTimer) {
+      clearInterval(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
+    }
+  }
+
+  private checkAndRefreshToken(): void {
+    // Don't refresh if already refreshing or not authenticated
+    if (this.isRefreshing || !this.isAuthenticatedSignal()) return;
+
+    const token = this.getAccessToken();
+    if (!token) return;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000;
+      const iat = payload.iat * 1000;
+      const now = Date.now();
+
+      // Token already expired - clear auth
+      if (now >= exp) {
+        this.clearAuth();
+        return;
+      }
+
+      // Calculate token lifetime and elapsed time
+      const tokenLifetime = exp - iat;
+      const elapsed = now - iat;
+      const elapsedPercent = (elapsed / tokenLifetime) * 100;
+
+      // Refresh if past the threshold
+      if (elapsedPercent >= this.REFRESH_THRESHOLD_PERCENT) {
+        this.performProactiveRefresh();
+      }
+    } catch {
+      // Invalid token - clear auth
+      this.clearAuth();
+    }
+  }
+
+  private performProactiveRefresh(): void {
+    this.isRefreshing = true;
+
+    this.refreshToken().subscribe({
+      next: () => {
+        this.isRefreshing = false;
+      },
+      error: () => {
+        this.isRefreshing = false;
+        // Token refresh failed - user will be logged out on next 401
+      },
+    });
+  }
+
   // ==================== Storage ====================
 
   private getStoredUser(): User | null {
@@ -246,9 +330,13 @@ export class AuthService {
     this.currentUserSignal.set(user);
     this.storeUser(user);
     this.isAuthenticatedSignal.set(true);
+    this.startTokenRefreshWatcher();
   }
 
   private clearAuth(): void {
+    // Stop token refresh watcher
+    this.stopTokenRefreshWatcher();
+
     // Clear localStorage auth items
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);

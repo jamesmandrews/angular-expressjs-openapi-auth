@@ -1,6 +1,6 @@
 # Angular + Express.js Authentication System
 
-A full-stack authentication application with an Angular 19 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.
+A full-stack authentication application with an Angular 19 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.  It is meant to be a boilerplate.  No one wants to write this stuff over and over and over again.  No one wants to tell AI to write thie stuff over and over and over again.  This is a good starting point and saves you a ton of work/tokens.
 
 ## Features
 

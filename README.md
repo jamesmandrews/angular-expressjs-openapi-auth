@@ -18,12 +18,16 @@ A full-stack authentication application with an Angular 19 frontend and Express.
 - Enable/disable 2FA management
 
 ### Security
+- **Secure token storage**: Access tokens in memory only, refresh tokens in HttpOnly cookies
+- **Refresh token rotation**: Tokens rotate on each use with reuse detection
+- **Hashed sensitive tokens**: Password reset and email verification tokens stored as SHA256 hashes
 - Bcrypt password hashing
 - JWT token blacklisting for logout
 - Rate limiting
 - Helmet.js security headers
 - CORS configuration
 - Role-based access control with scopes
+- Logout all devices functionality
 
 ### User Management
 - User profiles with first/last name
@@ -172,7 +176,8 @@ Open http://localhost:4200 in your browser.
 | POST | `/api/v1/auth/register` | No | Create account |
 | POST | `/api/v1/auth/login` | No | Login |
 | POST | `/api/v1/auth/logout` | Yes | Logout |
-| POST | `/api/v1/auth/refresh` | Yes | Refresh token |
+| POST | `/api/v1/auth/logout-all` | Yes | Logout all devices |
+| POST | `/api/v1/auth/refresh` | Cookie | Refresh token (uses HttpOnly cookie) |
 | GET | `/api/v1/auth/me` | Yes | Get profile |
 | PATCH | `/api/v1/auth/me` | Yes | Update profile |
 | POST | `/api/v1/auth/change-password` | Yes | Change password |
@@ -207,7 +212,8 @@ See `backend/.env.example` for all options. Key variables:
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
 | `JWT_SECRET` | - | **Required** - Token signing key |
-| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Token lifetime (seconds) |
+| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Access token lifetime (seconds) |
+| `REFRESH_TOKEN_EXPIRY` | 86400 | Refresh token lifetime (24 hours) |
 | `POSTGRES_*` | - | Database connection |
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `TOTP_ISSUER` | MyApp | Name in authenticator apps |

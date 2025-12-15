@@ -100,8 +100,9 @@ POSTGRES_DB=authdb
 Tables are auto-created on server startup (`backend/src/db/schema.ts`):
 
 - **users** - User accounts with email, password hash, profile info
-- **password_reset_tokens** - Tokens for forgot-password flow
-- **email_verification_tokens** - Tokens for email verification
+- **password_reset_tokens** - Hashed tokens for forgot-password flow (SHA256)
+- **email_verification_tokens** - Hashed tokens for email verification (SHA256)
+- **refresh_tokens** - Refresh tokens with rotation and reuse detection
 - **token_blacklist** - Invalidated JWTs (for logout)
 - **user_roles** - Role assignments for users
 - **backup_codes** - 2FA backup codes for account recovery
@@ -123,7 +124,8 @@ User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 | POST | `/auth/register` | No | Create new user account |
 | POST | `/auth/login` | No | Login and get JWT token |
 | POST | `/auth/logout` | Yes | Invalidate current token |
-| POST | `/auth/refresh` | Yes | Get new token (if >50% expired) |
+| POST | `/auth/logout-all` | Yes | Logout all devices (revokes all refresh tokens) |
+| POST | `/auth/refresh` | Cookie | Rotate refresh token and get new access token |
 | GET | `/auth/me` | Yes | Get current user profile |
 | PATCH | `/auth/me` | Yes | Update profile (firstName, lastName) |
 | POST | `/auth/change-password` | Yes | Change password (requires current) |
@@ -153,18 +155,26 @@ User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 
 ### JWT Authentication
 
-The application uses JWT tokens for authentication:
+The application uses a secure dual-token system:
 
-1. **Login** returns an access token (default: 5 min expiry)
-2. **Proactive token refresh** - Frontend automatically checks tokens every 30 seconds and refreshes after 50% of lifetime has elapsed
-3. **Token refresh** endpoint only works after 50% of token lifetime has elapsed (configurable)
-4. **Logout** adds token to blacklist (if `ENABLE_TOKEN_BLACKLIST=true`)
+1. **Access tokens** - Short-lived JWTs (default: 5 min), stored in memory only (never localStorage)
+2. **Refresh tokens** - Long-lived tokens (default: 24 hours), stored in HttpOnly cookies
+3. **Token rotation** - Refresh tokens rotate on each use, with reuse detection for security
+4. **Proactive refresh** - Frontend automatically refreshes tokens after 50% of lifetime has elapsed
+5. **Logout** - Revokes refresh token and optionally blacklists access token
+
+**Security features:**
+- Access token never touches localStorage (XSS protection)
+- Refresh token in HttpOnly cookie (not accessible via JavaScript)
+- Token rotation detects theft (if old token reused, entire session family revoked)
+- Password change revokes all sessions across devices
 
 Configuration:
 ```bash
 JWT_SECRET=your-secret-key
 JWT_ACCESS_TOKEN_EXPIRY=300              # 5 minutes in seconds
-JWT_REFRESH_THRESHOLD_PERCENT=50         # Only refresh after 50% elapsed
+REFRESH_TOKEN_EXPIRY=86400               # 24 hours in seconds
+JWT_REFRESH_THRESHOLD_PERCENT=50         # Refresh after 50% elapsed
 ENABLE_TOKEN_BLACKLIST=false             # Set true for strict logout
 ```
 
@@ -276,9 +286,17 @@ The Angular 19 frontend uses:
 readonly currentUser = computed(() => this.currentUserSignal());
 readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
 readonly twoFactorPending = computed(() => this.twoFactorPendingSignal());
+readonly sessionRestoring = computed(() => this.sessionRestoringSignal());
 ```
 
+**Token storage:**
+- Access token: In-memory only (`private accessToken: string | null`)
+- Refresh token: HttpOnly cookie (handled by browser, not accessible in JS)
+- User data: localStorage (non-sensitive profile info only)
+
 ### Route Guards
+
+All guards wait for session restoration to complete before checking auth state:
 
 - `authGuard` - Requires authenticated user, redirects to login
 - `guestGuard` - Requires unauthenticated user, redirects to dashboard
@@ -369,7 +387,8 @@ See `backend/.env.example` for all configuration options:
 | `NODE_ENV` | development | Environment mode |
 | `POSTGRES_*` | - | Database connection |
 | `JWT_SECRET` | - | **Required** in production |
-| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Token lifetime (seconds) |
+| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Access token lifetime (seconds) |
+| `REFRESH_TOKEN_EXPIRY` | 86400 | Refresh token lifetime (24 hours) |
 | `JWT_REFRESH_THRESHOLD_PERCENT` | 50 | Refresh after this % elapsed |
 | `BCRYPT_SALT_ROUNDS` | 10 | Password hashing rounds |
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |

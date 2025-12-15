@@ -207,7 +207,7 @@ See `backend/.env.example` for all options. Key variables:
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
 | `JWT_SECRET` | - | **Required** - Token signing key |
-| `JWT_ACCESS_TOKEN_EXPIRY` | 900 | Token lifetime (seconds) |
+| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Token lifetime (seconds) |
 | `POSTGRES_*` | - | Database connection |
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `TOTP_ISSUER` | MyApp | Name in authenticator apps |

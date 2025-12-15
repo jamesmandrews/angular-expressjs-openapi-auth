@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-This is a **monorepo** containing an Angular 18 frontend and Express.js backend.
+This is a **monorepo** containing an Angular 19 frontend and Express.js backend.
 
 ```
 /
@@ -25,7 +25,7 @@ This is a **monorepo** containing an Angular 18 frontend and Express.js backend.
 │   ├── tests/                  # Jest tests
 │   ├── package.json            # Backend dependencies
 │   └── tsconfig.json           # Backend TypeScript config
-├── frontend/                   # Angular 18 application
+├── frontend/                   # Angular 19 application
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── core/           # Services, guards, interceptors
@@ -34,7 +34,8 @@ This is a **monorepo** containing an Angular 18 frontend and Express.js backend.
 │   │   │   │   └── interceptors/ # HTTP interceptors
 │   │   │   ├── features/       # Feature modules
 │   │   │   │   ├── auth/       # Login, register, 2FA verify components
-│   │   │   │   └── dashboard/  # Dashboard component
+│   │   │   │   ├── dashboard/  # Dashboard component
+│   │   │   │   └── settings/   # Profile, password, 2FA management
 │   │   │   └── shared/         # Shared models, components
 │   │   └── environments/       # Environment configs
 │   ├── proxy.conf.json         # Dev proxy to backend API
@@ -102,6 +103,9 @@ Tables are auto-created on server startup (`backend/src/db/schema.ts`):
 - **password_reset_tokens** - Tokens for forgot-password flow
 - **email_verification_tokens** - Tokens for email verification
 - **token_blacklist** - Invalidated JWTs (for logout)
+- **user_roles** - Role assignments for users
+- **backup_codes** - 2FA backup codes for account recovery
+- **audit_logs** - Security event audit logging
 
 ### User IDs
 
@@ -151,14 +155,15 @@ User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 
 The application uses JWT tokens for authentication:
 
-1. **Login** returns an access token (default: 15 min expiry)
-2. **Token refresh** only works after 50% of token lifetime has elapsed (configurable)
-3. **Logout** adds token to blacklist (if `ENABLE_TOKEN_BLACKLIST=true`)
+1. **Login** returns an access token (default: 5 min expiry)
+2. **Proactive token refresh** - Frontend automatically checks tokens every 30 seconds and refreshes after 50% of lifetime has elapsed
+3. **Token refresh** endpoint only works after 50% of token lifetime has elapsed (configurable)
+4. **Logout** adds token to blacklist (if `ENABLE_TOKEN_BLACKLIST=true`)
 
 Configuration:
 ```bash
 JWT_SECRET=your-secret-key
-JWT_ACCESS_TOKEN_EXPIRY=900              # 15 minutes in seconds
+JWT_ACCESS_TOKEN_EXPIRY=300              # 5 minutes in seconds
 JWT_REFRESH_THRESHOLD_PERCENT=50         # Only refresh after 50% elapsed
 ENABLE_TOKEN_BLACKLIST=false             # Set true for strict logout
 ```
@@ -248,7 +253,7 @@ All errors follow the schema defined in `backend/openapi.yaml`:
 
 ### Architecture
 
-The Angular 18 frontend uses:
+The Angular 19 frontend uses:
 - **Standalone components** - No NgModules, components are self-contained
 - **Angular Signals** - Reactive state management without RxJS BehaviorSubjects
 - **Functional guards and interceptors** - Modern Angular patterns
@@ -277,6 +282,7 @@ readonly twoFactorPending = computed(() => this.twoFactorPendingSignal());
 
 - `authGuard` - Requires authenticated user, redirects to login
 - `guestGuard` - Requires unauthenticated user, redirects to dashboard
+- `emailVerifiedGuard` - Requires verified email, redirects to pending verification
 - `twoFactorGuard` - Requires 2FA pending state (mid-login flow)
 
 ### Environment Configuration
@@ -363,13 +369,13 @@ See `backend/.env.example` for all configuration options:
 | `NODE_ENV` | development | Environment mode |
 | `POSTGRES_*` | - | Database connection |
 | `JWT_SECRET` | - | **Required** in production |
-| `JWT_ACCESS_TOKEN_EXPIRY` | 900 | Token lifetime (seconds) |
+| `JWT_ACCESS_TOKEN_EXPIRY` | 300 | Token lifetime (seconds) |
 | `JWT_REFRESH_THRESHOLD_PERCENT` | 50 | Refresh after this % elapsed |
 | `BCRYPT_SALT_ROUNDS` | 10 | Password hashing rounds |
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `CORS_ALLOWED_ORIGINS` | localhost | Comma-separated origins |
 | `RATE_LIMIT_*` | - | Rate limiting config |
 | `TOTP_ISSUER` | MyApp | Name shown in authenticator apps |
-| `TOTP_WINDOW` | 1 | Accept codes ±1 time step (30 sec) |
+| `TOTP_WINDOW` | 2 | Accept codes ±2 time steps (60 sec) |
 | `AUDIT_LOG_ENABLED` | true | Enable audit logging |
 | `AUDIT_LOG_RETENTION_DAYS` | 90 | Days to keep audit logs |

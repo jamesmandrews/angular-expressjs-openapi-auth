@@ -18,13 +18,6 @@ import { HeaderComponent } from '../../shared/components/header/header.component
           <p>You are successfully logged in.</p>
         </div>
 
-        @if (!user()?.twoFactorEnabled) {
-          <div class="action-card">
-            <h3>Security Recommendation</h3>
-            <p>Enable two-factor authentication to secure your account.</p>
-            <a routerLink="/account/2fa" class="btn-primary">Enable 2FA</a>
-          </div>
-        }
       </main>
     </div>
   `,
@@ -40,8 +33,7 @@ import { HeaderComponent } from '../../shared/components/header/header.component
       margin: 0 auto;
     }
 
-    .welcome-card,
-    .action-card {
+    .welcome-card {
       background: white;
       padding: 24px;
       border-radius: 8px;
@@ -57,30 +49,6 @@ import { HeaderComponent } from '../../shared/components/header/header.component
     .welcome-card p {
       margin: 0;
       color: #666;
-    }
-
-    .action-card h3 {
-      margin: 0 0 16px;
-      color: #333;
-    }
-
-    .action-card p {
-      color: #666;
-      margin-bottom: 16px;
-    }
-
-    .btn-primary {
-      display: inline-block;
-      padding: 10px 20px;
-      background: #007bff;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      transition: background 0.2s;
-    }
-
-    .btn-primary:hover {
-      background: #0056b3;
     }
   `],
 })

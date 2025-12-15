@@ -295,14 +295,6 @@ Use the REST Client files in `rests/`:
 2. Open `.rest` files in VS Code with REST Client extension
 3. Execute requests and copy tokens to `.env`
 
-## Deployment
-
-The application is configured for Vercel deployment:
-
-- Backend runs as a serverless function via `/api/index.ts`
-- Frontend builds to static files
-- All `/api/v1/*` routes are handled by the Express app
-
 ## License
 
 This project is licensed under the GNU General Public License v2.0 - see the [LICENSE](LICENSE) file for details.

@@ -40,6 +40,3 @@ Thumbs.db
 # Test coverage
 coverage/
 backend/coverage/
-
-# Vercel
-.vercel

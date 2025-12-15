@@ -4,12 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-This is a **monorepo** containing an Angular 18 frontend and Express.js backend, configured for deployment as a single Vercel project.
+This is a **monorepo** containing an Angular 18 frontend and Express.js backend.
 
 ```
 /
-├── api/                        # Vercel serverless entry point
-│   └── index.ts                # Exports Express app for serverless
 ├── backend/                    # Express.js OpenAPI application
 │   ├── src/
 │   │   ├── app.ts              # Express app factory (createApp())
@@ -50,7 +48,6 @@ This is a **monorepo** containing an Angular 18 frontend and Express.js backend,
 │   └── backend/                # Compiled Express code
 ├── docker-compose.yml          # PostgreSQL database container
 ├── package.json                # Root workspace package.json
-├── vercel.json                 # Vercel routing configuration
 └── tsconfig.json               # Root TypeScript config
 ```
 
@@ -77,11 +74,6 @@ This is a **monorepo** containing an Angular 18 frontend and Express.js backend,
 - **Start PostgreSQL**: `docker-compose up -d` - Start PostgreSQL container
 - **Stop PostgreSQL**: `docker-compose down` - Stop container (data persists)
 - **Reset Database**: `docker-compose down -v` - Stop and delete all data
-
-### Vercel Deployment
-- **Build Command**: `npm run build:backend` (configured in vercel.json)
-- **Install Command**: `npm install && cd backend && npm install`
-- **API Routes**: All requests to `/api/v1/*` are routed to the Express serverless function
 
 ## Database
 
@@ -229,8 +221,7 @@ The backend is an OpenAPI-driven Express.js application using **automatic route 
 ### Data Flow
 
 ```
-Request → Vercel Edge Network / Local Server
-        → Security middleware (Helmet, CORS, Rate limiting)
+Request → Security middleware (Helmet, CORS, Rate limiting)
         → Request logger
         → Custom auth middleware (validates JWT, attaches req.user)
         → express-openapi-validator (validates against OpenAPI spec)

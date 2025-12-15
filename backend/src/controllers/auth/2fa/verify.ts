@@ -4,8 +4,10 @@ import { backupCodeStore } from '../../../models/backupCodeStore';
 import { userStore } from '../../../models/userStore';
 import { roleStore } from '../../../models/roleStore';
 import { scopeStore } from '../../../models/scopeStore';
+import { refreshTokenStore } from '../../../models/refreshTokenStore';
 import { verifyTOTPCode } from '../../../utils/totp';
 import { generateAccessToken } from '../../../utils/jwt';
+import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../../utils/cookies';
 import { toUserPublic } from '../../../types/auth.types';
 import { ErrorResponse } from '../../../types/common.types';
 import { audit } from '../../../utils/auditLogger';
@@ -116,6 +118,13 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
       scopes: userScopes,
       twoFactorVerified: true,
     });
+
+    // Create refresh token and set in HttpOnly cookie
+    const refreshToken = await refreshTokenStore.create(user.id, {
+      userAgent: getUserAgent(req),
+      ipAddress: getClientIp(req),
+    });
+    setRefreshTokenCookie(res, refreshToken.rawToken);
 
     // Audit successful 2FA verification
     await audit.twoFactorVerify(req, userId, true, usedBackupCode ? 'backup_code' : 'totp');

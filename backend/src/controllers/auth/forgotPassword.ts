@@ -27,7 +27,7 @@ export default async function forgotPassword(req: Request, res: Response, next: 
 
     // Create password reset token
     const resetToken = await passwordResetTokenStore.create(user.id);
-    const resetUrl = `${getResetUrl()}?token=${resetToken.token}`;
+    const resetUrl = `${getResetUrl()}?token=${resetToken.rawToken}`;
 
     // Send password reset email
     const emailProvider = getEmailProvider();

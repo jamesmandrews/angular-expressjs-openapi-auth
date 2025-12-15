@@ -27,58 +27,68 @@ function hashToken(token: string): string {
 }
 
 interface ResetTokenRow {
-  token: string;
+  token_hash: string;
   user_id: string;
   expires_at: Date;
   used: boolean;
 }
 
+interface PasswordResetTokenResult {
+  rawToken: string;
+  userId: string;
+  expiresAt: Date;
+  used: boolean;
+}
+
 class PasswordResetTokenStore {
-  async create(userId: string): Promise<PasswordResetToken> {
-    const token = randomBytes(32).toString('hex');
+  async create(userId: string): Promise<PasswordResetTokenResult> {
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
     const expirySeconds = getResetTokenExpiry();
     const expiresAt = new Date(Date.now() + expirySeconds * 1000);
 
     await query(
-      `INSERT INTO password_reset_tokens (token, user_id, expires_at)
+      `INSERT INTO password_reset_tokens (token_hash, user_id, expires_at)
        VALUES ($1, $2, $3)`,
-      [token, userId, expiresAt]
+      [tokenHash, userId, expiresAt]
     );
 
     return {
-      token,
+      rawToken,
       userId,
       expiresAt,
       used: false,
     };
   }
 
-  async get(token: string): Promise<PasswordResetToken | undefined> {
+  async get(rawToken: string): Promise<PasswordResetToken | undefined> {
+    const tokenHash = hashToken(rawToken);
     const row = await queryOne<ResetTokenRow>(
-      'SELECT * FROM password_reset_tokens WHERE token = $1',
-      [token]
+      'SELECT * FROM password_reset_tokens WHERE token_hash = $1',
+      [tokenHash]
     );
 
     if (!row) return undefined;
 
     return {
-      token: row.token,
+      token: rawToken, // Return raw token for interface compatibility
       userId: row.user_id,
       expiresAt: row.expires_at,
       used: row.used,
     };
   }
 
-  async markUsed(token: string): Promise<boolean> {
+  async markUsed(rawToken: string): Promise<boolean> {
+    const tokenHash = hashToken(rawToken);
     const result = await query(
-      `UPDATE password_reset_tokens SET used = TRUE WHERE token = $1 RETURNING token`,
-      [token]
+      `UPDATE password_reset_tokens SET used = TRUE WHERE token_hash = $1 RETURNING token_hash`,
+      [tokenHash]
     );
     return result.length > 0;
   }
 
-  async isValid(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
-    const resetToken = await this.get(token);
+  async isValid(rawToken: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+    const resetToken = await this.get(rawToken);
 
     if (!resetToken) {
       return { valid: false, error: 'Invalid reset token' };
@@ -95,10 +105,11 @@ class PasswordResetTokenStore {
     return { valid: true, userId: resetToken.userId };
   }
 
-  async delete(token: string): Promise<boolean> {
+  async delete(rawToken: string): Promise<boolean> {
+    const tokenHash = hashToken(rawToken);
     const result = await query(
-      'DELETE FROM password_reset_tokens WHERE token = $1 RETURNING token',
-      [token]
+      'DELETE FROM password_reset_tokens WHERE token_hash = $1 RETURNING token_hash',
+      [tokenHash]
     );
     return result.length > 0;
   }
@@ -147,65 +158,75 @@ interface EmailVerificationToken {
   used: boolean;
 }
 
+interface EmailVerificationTokenResult {
+  rawToken: string;
+  userId: string;
+  expiresAt: Date;
+  used: boolean;
+}
+
 interface VerificationTokenRow {
-  token: string;
+  token_hash: string;
   user_id: string;
   expires_at: Date;
   used: boolean;
 }
 
 class EmailVerificationTokenStore {
-  async create(userId: string): Promise<EmailVerificationToken> {
+  async create(userId: string): Promise<EmailVerificationTokenResult> {
     // Delete any existing unused tokens for this user
     await query(
       'DELETE FROM email_verification_tokens WHERE user_id = $1 AND used = FALSE',
       [userId]
     );
 
-    const token = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
     const expirySeconds = getVerificationTokenExpiry();
     const expiresAt = new Date(Date.now() + expirySeconds * 1000);
 
     await query(
-      `INSERT INTO email_verification_tokens (token, user_id, expires_at)
+      `INSERT INTO email_verification_tokens (token_hash, user_id, expires_at)
        VALUES ($1, $2, $3)`,
-      [token, userId, expiresAt]
+      [tokenHash, userId, expiresAt]
     );
 
     return {
-      token,
+      rawToken,
       userId,
       expiresAt,
       used: false,
     };
   }
 
-  async get(token: string): Promise<EmailVerificationToken | undefined> {
+  async get(rawToken: string): Promise<EmailVerificationToken | undefined> {
+    const tokenHash = hashToken(rawToken);
     const row = await queryOne<VerificationTokenRow>(
-      'SELECT * FROM email_verification_tokens WHERE token = $1',
-      [token]
+      'SELECT * FROM email_verification_tokens WHERE token_hash = $1',
+      [tokenHash]
     );
 
     if (!row) return undefined;
 
     return {
-      token: row.token,
+      token: rawToken, // Return raw token for interface compatibility
       userId: row.user_id,
       expiresAt: row.expires_at,
       used: row.used,
     };
   }
 
-  async markUsed(token: string): Promise<boolean> {
+  async markUsed(rawToken: string): Promise<boolean> {
+    const tokenHash = hashToken(rawToken);
     const result = await query(
-      `UPDATE email_verification_tokens SET used = TRUE WHERE token = $1 RETURNING token`,
-      [token]
+      `UPDATE email_verification_tokens SET used = TRUE WHERE token_hash = $1 RETURNING token_hash`,
+      [tokenHash]
     );
     return result.length > 0;
   }
 
-  async isValid(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
-    const verificationToken = await this.get(token);
+  async isValid(rawToken: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+    const verificationToken = await this.get(rawToken);
 
     if (!verificationToken) {
       return { valid: false, error: 'Invalid verification token' };
@@ -224,7 +245,7 @@ class EmailVerificationTokenStore {
 
   async deleteForUser(userId: string): Promise<boolean> {
     const result = await query(
-      'DELETE FROM email_verification_tokens WHERE user_id = $1 RETURNING token',
+      'DELETE FROM email_verification_tokens WHERE user_id = $1 RETURNING token_hash',
       [userId]
     );
     return result.length > 0;

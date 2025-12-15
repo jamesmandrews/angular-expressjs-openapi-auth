@@ -34,15 +34,36 @@ export async function initializeDatabase(): Promise<void> {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_verified_at TIMESTAMP WITH TIME ZONE
   `);
 
-  // Create password reset tokens table
+  // Create password reset tokens table (with hashed tokens for security)
   await query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
-      token VARCHAR(64) PRIMARY KEY,
+      token_hash VARCHAR(64) PRIMARY KEY,
       user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
       used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Migration: rename token column to token_hash if old schema exists
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'password_reset_tokens' AND column_name = 'token'
+      ) THEN
+        -- Drop old table and recreate (tokens become invalid - users must request new)
+        DROP TABLE password_reset_tokens CASCADE;
+        CREATE TABLE password_reset_tokens (
+          token_hash VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      END IF;
+    END $$;
   `);
 
   // Create index on user_id for faster lookups
@@ -64,15 +85,36 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires_at ON token_blacklist(expires_at)
   `);
 
-  // Create email verification tokens table
+  // Create email verification tokens table (with hashed tokens for security)
   await query(`
     CREATE TABLE IF NOT EXISTS email_verification_tokens (
-      token VARCHAR(64) PRIMARY KEY,
+      token_hash VARCHAR(64) PRIMARY KEY,
       user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
       used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Migration: rename token column to token_hash if old schema exists
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'email_verification_tokens' AND column_name = 'token'
+      ) THEN
+        -- Drop old table and recreate (tokens become invalid - users must request new)
+        DROP TABLE email_verification_tokens CASCADE;
+        CREATE TABLE email_verification_tokens (
+          token_hash VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      END IF;
+    END $$;
   `);
 
   // Create index on user_id for faster lookups
@@ -192,6 +234,33 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
+  // Create refresh_tokens table for secure refresh token storage
+  await query(`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id VARCHAR(22) PRIMARY KEY,
+      user_id VARCHAR(22) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(64) NOT NULL UNIQUE,
+      family_id VARCHAR(22) NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      revoked_at TIMESTAMP WITH TIME ZONE,
+      replaced_by VARCHAR(22),
+      user_agent VARCHAR(500),
+      ip_address INET
+    )
+  `);
+
+  // Create indexes for refresh_tokens lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family_id ON refresh_tokens(family_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash)
+  `);
+
   // Seed default roles if they don't exist
   await seedDefaultRoles();
 
@@ -302,7 +371,7 @@ export async function cleanupExpiredTokens(): Promise<void> {
   const resetResult = await query(`
     DELETE FROM password_reset_tokens
     WHERE expires_at < CURRENT_TIMESTAMP OR used = TRUE
-    RETURNING token
+    RETURNING token_hash
   `);
 
   // Clean up expired blacklisted tokens
@@ -316,12 +385,19 @@ export async function cleanupExpiredTokens(): Promise<void> {
   const verificationResult = await query(`
     DELETE FROM email_verification_tokens
     WHERE expires_at < CURRENT_TIMESTAMP OR used = TRUE
-    RETURNING token
+    RETURNING token_hash
   `);
 
-  const totalCleaned = resetResult.length + blacklistResult.length + verificationResult.length;
+  // Clean up expired or revoked refresh tokens
+  const refreshResult = await query(`
+    DELETE FROM refresh_tokens
+    WHERE expires_at < CURRENT_TIMESTAMP OR revoked_at IS NOT NULL
+    RETURNING id
+  `);
+
+  const totalCleaned = resetResult.length + blacklistResult.length + verificationResult.length + refreshResult.length;
   if (totalCleaned > 0) {
-    logger.debug(`Cleaned up ${resetResult.length} reset tokens, ${blacklistResult.length} blacklisted tokens, and ${verificationResult.length} verification tokens`);
+    logger.debug(`Cleaned up ${resetResult.length} reset tokens, ${blacklistResult.length} blacklisted tokens, ${verificationResult.length} verification tokens, and ${refreshResult.length} refresh tokens`);
   }
 }
 

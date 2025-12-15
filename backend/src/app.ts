@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createAuthMiddleware } from './middleware/authMiddleware';
@@ -24,6 +25,9 @@ export function createApp(): Application {
   app.use(createCorsMiddleware()); // Dynamic CORS
   app.use(createOpenApiRateLimiter(apiSpecPath)); // OpenAPI-aware rate limiting
   app.use(requestLogger); // HTTP request logging
+
+  // Cookie parsing middleware (for refresh tokens)
+  app.use(cookieParser());
 
   // Body parsing middleware with size limits
   const bodySizeLimit = process.env.REQUEST_BODY_SIZE_LIMIT || '10mb';

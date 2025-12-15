@@ -3,8 +3,10 @@ import { userStore } from '../../models/userStore';
 import { roleStore } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { twoFactorStore } from '../../models/twoFactorStore';
+import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { verifyPassword } from '../../utils/password';
 import { generateAccessTokenLegacy, generateTwoFactorPendingToken } from '../../utils/jwt';
+import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
@@ -73,6 +75,13 @@ export default async function login(req: Request, res: Response, next: NextFunct
 
     // No 2FA - generate full access token with roles and scopes
     const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+
+    // Create refresh token and set in HttpOnly cookie
+    const refreshToken = await refreshTokenStore.create(user.id, {
+      userAgent: getUserAgent(req),
+      ipAddress: getClientIp(req),
+    });
+    setRefreshTokenCookie(res, refreshToken.rawToken);
 
     // Audit successful login
     await audit.loginSuccess(req, user.id, user.email);

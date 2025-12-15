@@ -14,7 +14,7 @@ export interface User {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken?: string;
+  // Note: Refresh tokens are stored in HttpOnly cookies by the server, not in the response body
   expiresIn: number;
   tokenType: string;
 }

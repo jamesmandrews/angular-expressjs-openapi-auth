@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { emailVerificationTokenStore } from '../../models/tokenStore';
+import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { roleStore, ROLE_IDS } from '../../models/roleStore';
 import { scopeStore } from '../../models/scopeStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
 import { generateAccessTokenLegacy } from '../../utils/jwt';
+import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { getEmailProvider } from '../../email';
@@ -77,7 +79,7 @@ export default async function register(req: Request, res: Response, next: NextFu
 
     // Create verification token and send email
     const verificationToken = await emailVerificationTokenStore.create(user.id);
-    const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.token}`;
+    const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.rawToken}`;
 
     const emailProvider = getEmailProvider();
     const result = await emailProvider.send({
@@ -104,6 +106,13 @@ export default async function register(req: Request, res: Response, next: NextFu
 
     // Generate access token with roles and scopes
     const { token, expiresIn } = generateAccessTokenLegacy(user.id, user.email, roleNames, userScopes);
+
+    // Create refresh token and set in HttpOnly cookie
+    const refreshToken = await refreshTokenStore.create(user.id, {
+      userAgent: getUserAgent(req),
+      ipAddress: getClientIp(req),
+    });
+    setRefreshTokenCookie(res, refreshToken.rawToken);
 
     // Audit successful registration
     await audit.register(req, user.id, user.email, effectiveType);

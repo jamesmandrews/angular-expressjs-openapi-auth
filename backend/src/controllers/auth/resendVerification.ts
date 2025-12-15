@@ -47,7 +47,7 @@ export default async function resendVerification(req: Request, res: Response, ne
 
     // Create new verification token (this will delete any existing unused tokens)
     const verificationToken = await emailVerificationTokenStore.create(user.id);
-    const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.token}`;
+    const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.rawToken}`;
 
     // Send verification email
     const emailProvider = getEmailProvider();

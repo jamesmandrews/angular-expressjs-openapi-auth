@@ -113,8 +113,8 @@ paths:
         - auth
       summary: Logout user
       description: |
-        Invalidates the current access token by adding it to a blacklist.
-        The client should also discard the token from memory.
+        Invalidates the current session by revoking the refresh token and optionally
+        blacklisting the access token. Clears the refresh token cookie.
       operationId: authLogout
       x-eov-operation-handler: auth/logout
       x-allow-unverified-email: true
@@ -136,19 +136,54 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /auth/logout-all:
+    post:
+      tags:
+        - auth
+      summary: Logout from all devices
+      description: |
+        Revokes all refresh tokens for the user, effectively logging them out from all devices.
+        Use this after a password change or when security concerns arise.
+      operationId: authLogoutAll
+      x-eov-operation-handler: auth/logoutAll
+      x-allow-unverified-email: true
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out from all devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out from all devices. 3 session(s) terminated.
+                  data:
+                    type: object
+                    properties:
+                      sessionsRevoked:
+                        type: integer
+                        description: Number of sessions that were terminated
+                        example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /auth/refresh:
     post:
       tags:
         - auth
       summary: Refresh access token
       description: |
-        Uses a valid (non-expired) access token to obtain a new access token.
-        Call this endpoint before the current token expires to maintain the session.
-        Recommended: refresh when 80% of token lifetime has elapsed.
+        Uses the HttpOnly refresh token cookie to obtain a new access token.
+        The refresh token is automatically rotated on each use for security.
+        Call this endpoint when the access token expires or on page load to restore session.
       operationId: authRefresh
       x-eov-operation-handler: auth/refresh
-      security:
-        - bearerAuth: []
+      # No security requirement - uses HttpOnly cookie instead of Bearer token
       responses:
         '200':
           description: Successfully refreshed token
@@ -162,14 +197,16 @@ paths:
                     properties:
                       tokens:
                         $ref: '#/components/schemas/TokenResponse'
-                  refreshed:
-                    type: boolean
-                    description: Whether a new token was issued
-                  message:
-                    type: string
-                    description: Status message (present when token is still fresh)
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_REFRESH_TOKEN
+                  message: The refresh token is invalid or has expired
         '500':
           $ref: '#/components/responses/InternalServerError'
 

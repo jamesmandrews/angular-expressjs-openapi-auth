@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError } from 'rxjs';
+import { Observable, tap, catchError, throwError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   User,
@@ -15,8 +15,6 @@ import {
   TwoFactorVerifySetupResponse,
 } from '../../shared/models/auth.model';
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user';
 
 @Injectable({
@@ -31,34 +29,70 @@ export class AuthService implements OnDestroy {
   private tokenRefreshTimer: ReturnType<typeof setInterval> | null = null;
   private isRefreshing = false;
 
+  // SECURITY: Access token stored in memory only, never in localStorage
+  private accessToken: string | null = null;
+  private sessionInitialized = false;
+
   // Signals for reactive state
   private currentUserSignal = signal<User | null>(this.getStoredUser());
-  private isAuthenticatedSignal = signal<boolean>(this.hasValidToken());
-  private twoFactorPendingSignal = signal<boolean>(this.checkTwoFactorPending());
+  private isAuthenticatedSignal = signal<boolean>(false);
+  private twoFactorPendingSignal = signal<boolean>(false);
+  private sessionRestoringSignal = signal<boolean>(true);
 
   // Public computed signals
   readonly currentUser = computed(() => this.currentUserSignal());
   readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
   readonly twoFactorPending = computed(() => this.twoFactorPendingSignal());
+  readonly sessionRestoring = computed(() => this.sessionRestoringSignal());
 
   constructor(
     private http: HttpClient,
     private router: Router
   ) {
-    // Start token watcher if already authenticated
-    if (this.hasValidToken() && !this.checkTwoFactorPending()) {
-      this.startTokenRefreshWatcher();
-    }
+    // Try to restore session from cookie on startup
+    this.initializeSession();
   }
 
   ngOnDestroy(): void {
     this.stopTokenRefreshWatcher();
   }
 
+  /**
+   * Initialize session by trying to refresh token from cookie
+   * This restores the session after page reload
+   */
+  private initializeSession(): void {
+    if (this.sessionInitialized) return;
+    this.sessionInitialized = true;
+    this.sessionRestoringSignal.set(true);
+
+    // Try to get new access token from refresh token cookie
+    this.refreshToken().subscribe({
+      next: () => {
+        // Session restored - fetch user profile
+        this.getProfile().subscribe({
+          next: () => {
+            this.sessionRestoringSignal.set(false);
+            this.startTokenRefreshWatcher();
+          },
+          error: () => {
+            this.sessionRestoringSignal.set(false);
+            this.clearAuthState();
+          },
+        });
+      },
+      error: () => {
+        // No valid session - that's ok, user needs to login
+        this.sessionRestoringSignal.set(false);
+        this.clearAuthState();
+      },
+    });
+  }
+
   // ==================== Authentication ====================
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, credentials).pipe(
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, credentials, { withCredentials: true }).pipe(
       tap((response: LoginResponse) => {
         if (response.data.twoFactorRequired) {
           this.setAccessToken(response.data.tokens.accessToken);
@@ -71,7 +105,7 @@ export class AuthService implements OnDestroy {
   }
 
   register(data: RegisterRequest): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${this.apiUrl}/auth/register`, data).pipe(
+    return this.http.post<RegisterResponse>(`${this.apiUrl}/auth/register`, data, { withCredentials: true }).pipe(
       tap((response: RegisterResponse) => {
         this.handleAuthSuccess(response.data.user, response.data.tokens);
       })
@@ -81,7 +115,7 @@ export class AuthService implements OnDestroy {
   logout(): void {
     const token = this.getAccessToken();
     if (token) {
-      this.http.post(`${this.apiUrl}/auth/logout`, {}).subscribe({
+      this.http.post(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({
         complete: () => this.clearAuth(),
         error: () => this.clearAuth(),
       });
@@ -90,16 +124,33 @@ export class AuthService implements OnDestroy {
     }
   }
 
+  logoutAllDevices(): Observable<{ message: string; data: { sessionsRevoked: number } }> {
+    return this.http.post<{ message: string; data: { sessionsRevoked: number } }>(
+      `${this.apiUrl}/auth/logout-all`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      tap(() => {
+        this.clearAuth();
+      })
+    );
+  }
+
   refreshToken(): Observable<{ data: { tokens: AuthTokens } }> {
-    return this.http.post<{ data: { tokens: AuthTokens } }>(`${this.apiUrl}/auth/refresh`, {}).pipe(
+    return this.http.post<{ data: { tokens: AuthTokens } }>(
+      `${this.apiUrl}/auth/refresh`,
+      {},
+      { withCredentials: true }
+    ).pipe(
       tap((response: { data: { tokens: AuthTokens } }) => {
         this.setAccessToken(response.data.tokens.accessToken);
-        if (response.data.tokens.refreshToken) {
-          this.setRefreshToken(response.data.tokens.refreshToken);
-        }
+        this.isAuthenticatedSignal.set(true);
       }),
       catchError((error) => {
-        this.clearAuth();
+        // Don't clear auth state during initial session restoration
+        if (this.isAuthenticatedSignal()) {
+          this.clearAuth();
+        }
         return throwError(() => error);
       })
     );
@@ -108,7 +159,7 @@ export class AuthService implements OnDestroy {
   // ==================== Two-Factor Authentication ====================
 
   verify2FA(data: TwoFactorVerifyRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/2fa/verify`, data).pipe(
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/2fa/verify`, data, { withCredentials: true }).pipe(
       tap((response: LoginResponse) => {
         this.twoFactorPendingSignal.set(false);
         this.handleAuthSuccess(response.data.user, response.data.tokens);
@@ -117,11 +168,15 @@ export class AuthService implements OnDestroy {
   }
 
   setup2FA(): Observable<TwoFactorSetupResponse> {
-    return this.http.post<TwoFactorSetupResponse>(`${this.apiUrl}/auth/2fa/setup`, {});
+    return this.http.post<TwoFactorSetupResponse>(`${this.apiUrl}/auth/2fa/setup`, {}, { withCredentials: true });
   }
 
   verifySetup2FA(data: TwoFactorVerifyRequest): Observable<TwoFactorVerifySetupResponse> {
-    return this.http.post<TwoFactorVerifySetupResponse>(`${this.apiUrl}/auth/2fa/verify-setup`, data).pipe(
+    return this.http.post<TwoFactorVerifySetupResponse>(
+      `${this.apiUrl}/auth/2fa/verify-setup`,
+      data,
+      { withCredentials: true }
+    ).pipe(
       tap(() => {
         const user = this.currentUserSignal();
         if (user) {
@@ -133,7 +188,11 @@ export class AuthService implements OnDestroy {
   }
 
   disable2FA(password: string, code: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/auth/2fa/disable`, { password, code }).pipe(
+    return this.http.post<{ message: string }>(
+      `${this.apiUrl}/auth/2fa/disable`,
+      { password, code },
+      { withCredentials: true }
+    ).pipe(
       tap(() => {
         const user = this.currentUserSignal();
         if (user) {
@@ -145,13 +204,17 @@ export class AuthService implements OnDestroy {
   }
 
   regenerateBackupCodes(code: string): Observable<{ data: { backupCodes: string[] } }> {
-    return this.http.post<{ data: { backupCodes: string[] } }>(`${this.apiUrl}/auth/2fa/backup-codes/regenerate`, { code });
+    return this.http.post<{ data: { backupCodes: string[] } }>(
+      `${this.apiUrl}/auth/2fa/backup-codes/regenerate`,
+      { code },
+      { withCredentials: true }
+    );
   }
 
   // ==================== Profile ====================
 
   getProfile(): Observable<{ data: User }> {
-    return this.http.get<{ data: User }>(`${this.apiUrl}/auth/me`).pipe(
+    return this.http.get<{ data: User }>(`${this.apiUrl}/auth/me`, { withCredentials: true }).pipe(
       tap((response: { data: User }) => {
         this.currentUserSignal.set(response.data);
         this.storeUser(response.data);
@@ -160,7 +223,11 @@ export class AuthService implements OnDestroy {
   }
 
   updateProfile(data: Partial<User>): Observable<{ data: User; message: string }> {
-    return this.http.patch<{ data: User; message: string }>(`${this.apiUrl}/auth/me`, data).pipe(
+    return this.http.patch<{ data: User; message: string }>(
+      `${this.apiUrl}/auth/me`,
+      data,
+      { withCredentials: true }
+    ).pipe(
       tap((response: { data: User; message: string }) => {
         this.currentUserSignal.set(response.data);
         this.storeUser(response.data);
@@ -171,10 +238,17 @@ export class AuthService implements OnDestroy {
   // ==================== Password Management ====================
 
   changePassword(currentPassword: string, newPassword: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/auth/change-password`, {
-      currentPassword,
-      newPassword,
-    });
+    return this.http.post<{ message: string }>(
+      `${this.apiUrl}/auth/change-password`,
+      { currentPassword, newPassword },
+      { withCredentials: true }
+    ).pipe(
+      tap(() => {
+        // Password change revokes all sessions on the backend
+        // Clear local state - user will need to re-login
+        this.clearAuth();
+      })
+    );
   }
 
   forgotPassword(email: string): Observable<{ message: string }> {
@@ -188,7 +262,11 @@ export class AuthService implements OnDestroy {
   // ==================== Email Verification ====================
 
   resendVerification(): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/auth/resend-verification`, {});
+    return this.http.post<{ message: string }>(
+      `${this.apiUrl}/auth/resend-verification`,
+      {},
+      { withCredentials: true }
+    );
   }
 
   updateUserFromResponse(userData: User): void {
@@ -199,15 +277,11 @@ export class AuthService implements OnDestroy {
   // ==================== Token Management ====================
 
   getAccessToken(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    return this.accessToken;
   }
 
   private setAccessToken(token: string): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token);
-  }
-
-  private setRefreshToken(token: string): void {
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    this.accessToken = token;
   }
 
   private hasValidToken(): boolean {
@@ -230,7 +304,6 @@ export class AuthService implements OnDestroy {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const exp = payload.exp * 1000;
-      // Token must be valid and have twoFactorPending flag
       return Date.now() < exp && payload.twoFactorPending === true;
     } catch {
       return false;
@@ -240,7 +313,6 @@ export class AuthService implements OnDestroy {
   // ==================== Proactive Token Refresh ====================
 
   private startTokenRefreshWatcher(): void {
-    // Don't start if already running
     if (this.tokenRefreshTimer) return;
 
     this.tokenRefreshTimer = setInterval(() => {
@@ -259,7 +331,6 @@ export class AuthService implements OnDestroy {
   }
 
   private checkAndRefreshToken(): void {
-    // Don't refresh if already refreshing or not authenticated
     if (this.isRefreshing || !this.isAuthenticatedSignal()) return;
 
     const token = this.getAccessToken();
@@ -271,9 +342,9 @@ export class AuthService implements OnDestroy {
       const iat = payload.iat * 1000;
       const now = Date.now();
 
-      // Token already expired - clear auth
+      // Token already expired - try to refresh from cookie
       if (now >= exp) {
-        this.clearAuth();
+        this.performProactiveRefresh();
         return;
       }
 
@@ -287,8 +358,8 @@ export class AuthService implements OnDestroy {
         this.performProactiveRefresh();
       }
     } catch {
-      // Invalid token - clear auth
-      this.clearAuth();
+      // Invalid token - try to refresh from cookie
+      this.performProactiveRefresh();
     }
   }
 
@@ -301,7 +372,8 @@ export class AuthService implements OnDestroy {
       },
       error: () => {
         this.isRefreshing = false;
-        // Token refresh failed - user will be logged out on next 401
+        // Refresh failed - session has ended
+        this.clearAuth();
       },
     });
   }
@@ -324,42 +396,24 @@ export class AuthService implements OnDestroy {
 
   private handleAuthSuccess(user: User, tokens: AuthTokens): void {
     this.setAccessToken(tokens.accessToken);
-    if (tokens.refreshToken) {
-      this.setRefreshToken(tokens.refreshToken);
-    }
+    // Refresh token is stored in HttpOnly cookie by the server - no need to handle it here
     this.currentUserSignal.set(user);
     this.storeUser(user);
     this.isAuthenticatedSignal.set(true);
     this.startTokenRefreshWatcher();
   }
 
-  private clearAuth(): void {
-    // Stop token refresh watcher
-    this.stopTokenRefreshWatcher();
-
-    // Clear localStorage auth items
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  private clearAuthState(): void {
+    this.accessToken = null;
     localStorage.removeItem(USER_KEY);
-
-    // Clear sessionStorage auth items (not all - only auth-related keys)
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-
-    // Clear only auth-related cookies (not all cookies)
-    const authCookieNames = [ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, 'session', 'auth'];
-    authCookieNames.forEach((name) => {
-      // Clear for current path and root path
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${window.location.pathname};`;
-    });
-
-    // Reset signals
     this.currentUserSignal.set(null);
     this.isAuthenticatedSignal.set(false);
     this.twoFactorPendingSignal.set(false);
+  }
 
+  private clearAuth(): void {
+    this.stopTokenRefreshWatcher();
+    this.clearAuthState();
     this.router.navigate(['/login']);
   }
 }

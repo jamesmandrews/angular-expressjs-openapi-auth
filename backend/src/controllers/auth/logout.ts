@@ -1,16 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 import { tokenBlacklistStore } from '../../models/tokenStore';
+import { refreshTokenStore } from '../../models/refreshTokenStore';
+import { getRefreshTokenFromCookie, clearRefreshTokenCookie } from '../../utils/cookies';
 import { audit } from '../../utils/auditLogger';
 
 export default async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
 
+    // Blacklist the access token (if feature enabled)
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      // Add token to blacklist
       await tokenBlacklistStore.add(token);
     }
+
+    // Revoke the refresh token from cookie
+    const refreshToken = getRefreshTokenFromCookie(req);
+    if (refreshToken) {
+      await refreshTokenStore.revoke(refreshToken);
+    }
+
+    // Clear the refresh token cookie
+    clearRefreshTokenCookie(res);
 
     // Audit logout
     if (req.user?.id) {

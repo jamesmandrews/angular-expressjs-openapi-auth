@@ -114,15 +114,12 @@ export class AuthService implements OnDestroy {
   }
 
   logout(): void {
-    const token = this.getAccessToken();
-    if (token) {
-      this.http.post(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({
-        complete: () => this.clearAuth(),
-        error: () => this.clearAuth(),
-      });
-    } else {
-      this.clearAuth();
-    }
+    // Always call the logout endpoint to ensure the refresh token cookie is cleared server-side
+    // Even if no access token in memory, the HttpOnly cookie may still be valid
+    this.http.post(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({
+      complete: () => this.clearAuth(),
+      error: () => this.clearAuth(),
+    });
   }
 
   logoutAllDevices(): Observable<{ message: string; data: { sessionsRevoked: number } }> {

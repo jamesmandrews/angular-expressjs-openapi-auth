@@ -4,11 +4,12 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { PasswordRequirementsComponent } from '../../../shared/components/password-requirements/password-requirements.component';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent, PasswordRequirementsComponent],
   template: `
     <div class="auth-container">
       <div class="auth-card">
@@ -36,13 +37,9 @@ import { SpinnerComponent } from '../../../shared/components/spinner/spinner.com
                 type="password"
                 id="password"
                 formControlName="password"
-                placeholder="Enter new password"
+                placeholder="Enter a secure password"
               />
-              @if (resetForm.get('password')?.invalid && resetForm.get('password')?.touched) {
-                <span class="field-error">
-                  Password must be at least 16 characters with uppercase, lowercase, and number
-                </span>
-              }
+              <app-password-requirements [password]="resetForm.get('password')?.value || ''"></app-password-requirements>
             </div>
 
             <div class="form-group">

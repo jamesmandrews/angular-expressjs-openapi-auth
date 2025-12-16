@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
+import { roleStore } from '../../models/roleStore';
+import { scopeStore } from '../../models/scopeStore';
 import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { verifyPassword, hashPassword, validatePasswordStrength } from '../../utils/password';
-import { clearRefreshTokenCookie } from '../../utils/cookies';
+import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
+import { generateAccessToken } from '../../utils/jwt';
 import { ErrorResponse } from '../../types/common.types';
 import { emitEvent } from '../../utils/events';
 import logger from '../../utils/logger';
@@ -75,15 +78,34 @@ export default async function changePassword(req: Request, res: Response, next: 
     const newPasswordHash = await hashPassword(newPassword);
     await userStore.updatePassword(userId, newPasswordHash);
 
-    // Revoke all refresh tokens for this user (force re-login on all devices)
+    // Revoke all refresh tokens for this user (invalidates all other devices)
     const revokedCount = await refreshTokenStore.revokeAllForUser(userId);
     logger.info(`Revoked ${revokedCount} refresh tokens after password change for user ${userId}`);
 
     // Regenerate token salt to invalidate all existing access tokens immediately
-    await userStore.regenerateTokenSalt(userId);
+    const newTokenSalt = await userStore.regenerateTokenSalt(userId);
 
-    // Clear the current session's refresh token cookie
-    clearRefreshTokenCookie(res);
+    // Get user roles and scopes for new token
+    const userRoles = await roleStore.getUserRoles(userId);
+    const roleNames = userRoles.map(r => r.name);
+    const userScopes = await scopeStore.getUserScopes(userId);
+
+    // Generate new access token with updated token salt
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      roles: roleNames,
+      scopes: userScopes,
+      jti: newTokenSalt || undefined,
+    });
+    const expiresIn = parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10);
+
+    // Create new refresh token for current session
+    const refreshToken = await refreshTokenStore.create(userId, {
+      userAgent: getUserAgent(req),
+      ipAddress: getClientIp(req),
+    });
+    setRefreshTokenCookie(res, refreshToken.rawToken);
 
     // Emit event (audit handled via plugin)
     await emitEvent('auth.password.change', req, {
@@ -92,7 +114,14 @@ export default async function changePassword(req: Request, res: Response, next: 
     });
 
     res.status(200).json({
-      message: 'Password changed successfully. You have been logged out from all devices.',
+      message: 'Password changed successfully. Other devices have been logged out.',
+      data: {
+        tokens: {
+          accessToken,
+          expiresIn,
+          tokenType: 'Bearer',
+        },
+      },
     });
   } catch (error) {
     next(error);

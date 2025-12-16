@@ -5,11 +5,12 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { HeaderComponent } from '../../../shared/components/header/header.component';
+import { PasswordRequirementsComponent } from '../../../shared/components/password-requirements/password-requirements.component';
 
 @Component({
   selector: 'app-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent, HeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent, HeaderComponent, PasswordRequirementsComponent],
   template: `
     <div class="settings-container">
       <app-header
@@ -49,11 +50,9 @@ import { HeaderComponent } from '../../../shared/components/header/header.compon
                 type="password"
                 id="newPassword"
                 formControlName="newPassword"
-                placeholder="Minimum 16 characters"
+                placeholder="Enter a secure password"
               />
-              @if (passwordForm.get('newPassword')?.invalid && passwordForm.get('newPassword')?.touched) {
-                <span class="field-error">Password must be at least 16 characters</span>
-              }
+              <app-password-requirements [password]="passwordForm.get('newPassword')?.value || ''"></app-password-requirements>
             </div>
 
             <div class="form-group">
@@ -215,7 +214,11 @@ export class PasswordComponent {
   passwordForm: FormGroup = this.fb.group(
     {
       currentPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, Validators.minLength(16)]],
+      newPassword: ['', [
+        Validators.required,
+        Validators.minLength(16),
+        Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+      ]],
       confirmPassword: ['', Validators.required],
     },
     { validators: this.passwordMatchValidator }
@@ -242,7 +245,7 @@ export class PasswordComponent {
     this.authService.changePassword(currentPassword, newPassword).subscribe({
       next: () => {
         this.isLoading = false;
-        this.successMessage = 'Password changed successfully!';
+        this.successMessage = 'Password changed successfully! Other devices have been logged out.';
         this.passwordForm.reset();
       },
       error: (error) => {

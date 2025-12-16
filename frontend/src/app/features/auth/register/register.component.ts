@@ -4,11 +4,12 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { PasswordRequirementsComponent } from '../../../shared/components/password-requirements/password-requirements.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SpinnerComponent, PasswordRequirementsComponent],
   template: `
     <div class="auth-container">
       <div class="auth-card">
@@ -60,11 +61,9 @@ import { SpinnerComponent } from '../../../shared/components/spinner/spinner.com
               type="password"
               id="password"
               formControlName="password"
-              placeholder="Minimum 16 characters"
+              placeholder="Enter a secure password"
             />
-            @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
-              <span class="field-error">Password must be at least 16 characters</span>
-            }
+            <app-password-requirements [password]="registerForm.get('password')?.value || ''"></app-password-requirements>
           </div>
 
           <div class="form-group">
@@ -225,7 +224,11 @@ export class RegisterComponent {
         firstName: [''],
         lastName: [''],
         email: ['', [Validators.required, Validators.email]],
-        password: ['', [Validators.required, Validators.minLength(16)]],
+        password: ['', [
+          Validators.required,
+          Validators.minLength(16),
+          Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+        ]],
         confirmPassword: ['', Validators.required],
       },
       { validators: this.passwordMatchValidator }

@@ -236,15 +236,17 @@ export class AuthService implements OnDestroy {
   // ==================== Password Management ====================
 
   changePassword(currentPassword: string, newPassword: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(
+    return this.http.post<{ message: string; data?: { tokens: { accessToken: string } } }>(
       `${this.apiUrl}/auth/change-password`,
       { currentPassword, newPassword },
       { withCredentials: true }
     ).pipe(
-      tap(() => {
-        // Password change revokes all sessions on the backend
-        // Clear local state - user will need to re-login
-        this.clearAuth();
+      tap((response: { message: string; data?: { tokens: { accessToken: string } } }) => {
+        // Password change returns new tokens - update the access token
+        // Refresh token is set via HttpOnly cookie automatically
+        if (response.data?.tokens?.accessToken) {
+          this.accessToken = response.data.tokens.accessToken;
+        }
       })
     );
   }

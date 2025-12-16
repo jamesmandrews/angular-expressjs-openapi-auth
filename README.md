@@ -1,6 +1,6 @@
 # Angular + Express.js Authentication System
 
-An OpenAPI first full-stack authentication application with an Angular 19 frontend and Express.js OpenAPI backend. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.  It is meant to be a boilerplate.  No one wants to write this stuff over and over and over again.  No one wants to tell AI to write thie stuff over and over and over again.  This is a good starting point and saves you a ton of work/tokens.
+An OpenAPI first full-stack authentication application with an Angular 19 frontend and Express.js OpenAPI API. Features JWT authentication, two-factor authentication (TOTP), email verification, and role-based access control.  It is meant to be a boilerplate.  No one wants to write this stuff over and over and over again.  No one wants to tell AI to write thie stuff over and over and over again.  This is a good starting point and saves you a ton of work/tokens.
 
 ## Features
 
@@ -73,8 +73,8 @@ cd angular-expressjs-openapi-auth
 # Install root dependencies
 npm install
 
-# Install backend dependencies
-cd backend && npm install && cd ..
+# Install API dependencies
+cd api-authentication && npm install && cd ..
 
 # Install frontend dependencies
 cd frontend && npm install && cd ..
@@ -89,23 +89,35 @@ docker-compose up -d
 ### 3. Configure Environment
 
 ```bash
-cp backend/.env.example backend/.env
+cp api-authentication/.env.example api-authentication/.env
 ```
 
-Edit `backend/.env` and set at minimum:
+Edit `api-authentication/.env` and set at minimum:
 ```bash
 JWT_SECRET=your-secure-secret-key
 ```
 
+**Generating a secure JWT_SECRET:**
+
+```bash
+# Option 1: Using openssl (recommended)
+openssl rand -base64 64
+
+# Option 2: Using Node.js
+node -e "console.log(require('crypto').randomBytes(64).toString('base64'))"
+```
+
+Use a minimum of 256 bits (32 bytes) of entropy. The examples above generate 512 bits (64 bytes) for extra security.
+
 ### 4. Start Development Servers
 
 ```bash
-# Start both frontend and backend
+# Start both frontend and API
 npm run dev
 
 # Or start separately:
-npm run dev:backend   # Express API on http://localhost:3000
-npm run dev:frontend  # Angular app on http://localhost:4200
+npm run dev:api:auth   # Express API on http://localhost:3000
+npm run dev:frontend   # Angular app on http://localhost:4200
 ```
 
 ### 5. Access the Application
@@ -116,7 +128,7 @@ Open http://localhost:4200 in your browser.
 
 ```
 /
-├── backend/                    # Express.js API
+├── api-authentication/         # Express.js Authentication API
 │   ├── src/
 │   │   ├── controllers/        # OpenAPI operation handlers
 │   │   │   └── auth/           # Authentication controllers
@@ -124,14 +136,11 @@ Open http://localhost:4200 in your browser.
 │   │   ├── middleware/         # Auth, security, error handling
 │   │   ├── models/             # Data stores (user, token, etc.)
 │   │   ├── db/                 # Database connection and schema
-│   │   ├── plugins/            # Plugin system core
+│   │   ├── plugin-system/      # Plugin system core
+│   │   ├── plugins/            # Plugin implementations
 │   │   ├── email/              # Email providers (stub, SMTP)
 │   │   ├── utils/              # JWT, password, TOTP utilities
 │   │   └── types/              # TypeScript definitions
-│   ├── plugins/                # Plugin implementations
-│   │   ├── audit-database.ts   # Audit logging plugin
-│   │   ├── auth-emails.ts      # Email notification plugin
-│   │   └── example-logger.ts   # Example/demo plugin
 │   ├── openapi.yaml            # API specification
 │   └── tests/                  # Jest tests
 │
@@ -146,7 +155,7 @@ Open http://localhost:4200 in your browser.
 │   │   │   ├── dashboard/      # Main dashboard
 │   │   │   └── settings/       # Profile, password, 2FA management
 │   │   └── shared/             # Shared components and models
-│   └── proxy.conf.json         # Dev proxy to backend
+│   └── proxy.conf.json         # Dev proxy to API
 │
 ├── docker-compose.yml          # PostgreSQL container
 └── package.json                # Root workspace scripts
@@ -157,15 +166,16 @@ Open http://localhost:4200 in your browser.
 ### Root Level
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start both frontend and backend |
+| `npm run dev` | Start both frontend and API |
 | `npm run build` | Build both applications |
-| `npm run dev:backend` | Start backend only |
+| `npm run dev:api:auth` | Start auth API only |
 | `npm run dev:frontend` | Start frontend only |
-| `npm run build:backend` | Build backend |
+| `npm run build:api:auth` | Build auth API |
 | `npm run build:frontend` | Build frontend |
+| `npm run test:api:auth` | Run auth API tests |
 | `npm run clean` | Remove build artifacts |
 
-### Backend (`cd backend`)
+### Auth API (`cd api-authentication`)
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Development server with hot reload |
@@ -218,7 +228,7 @@ Open http://localhost:4200 in your browser.
 
 ### Environment Variables
 
-See `backend/.env.example` for all options. Key variables:
+See `api-authentication/.env.example` for all options. Key variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -275,7 +285,7 @@ paths:
 
 Controllers export a default function matching the handler path:
 ```typescript
-// backend/src/controllers/auth/login.ts
+// api-authentication/src/controllers/auth/login.ts
 export default async function login(req, res, next) { ... }
 ```
 
@@ -298,7 +308,7 @@ readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
 
 ## Plugin System
 
-The backend features a powerful plugin system for extending functionality without modifying core code. Plugins can react to authentication events, block operations, send notifications, and more.
+The API features a powerful plugin system for extending functionality without modifying core code. Plugins can react to authentication events, block operations, send notifications, and more.
 
 ### Built-in Plugins
 
@@ -352,11 +362,11 @@ Plugins can subscribe to any of these 18 events:
 
 ### Creating a Plugin
 
-Create a file in `backend/plugins/` with a default export:
+Create a file in `api-authentication/src/plugins/` with a default export:
 
 ```typescript
-// backend/plugins/my-plugin.ts
-import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
+// api-authentication/src/plugins/my-plugin.ts
+import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
 
 const myPlugin: Plugin = {
   name: 'my-plugin',
@@ -429,7 +439,7 @@ interface PluginContext {
 
 ### Enabling/Disabling Plugins
 
-**File-based:** Plugins auto-load from `backend/plugins/`. To disable, rename or remove the file.
+**File-based:** Plugins auto-load from `api-authentication/src/plugins/`. To disable, rename or remove the file.
 
 **Config-based:** Use the `DISABLED_PLUGINS` environment variable:
 
@@ -440,10 +450,10 @@ DISABLED_PLUGINS=example-logger,audit-database
 
 ## Testing
 
-### Backend Tests
+### API Tests
 
 ```bash
-cd backend
+cd api-authentication
 npm test                    # Run all tests
 npm run test:watch          # Watch mode
 npm run test:coverage       # Coverage report

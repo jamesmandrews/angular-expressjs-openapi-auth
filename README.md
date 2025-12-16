@@ -34,6 +34,13 @@ An OpenAPI first full-stack authentication application with an Angular 19 fronte
 - Multiple user types (configurable)
 - Audit logging for security events
 
+### Plugin System
+- Event-driven architecture with 18 hook points
+- Sync plugins can block operations (e.g., block registration)
+- Async plugins for notifications, logging, integrations
+- Built-in plugins for audit logging and email notifications
+- Easy enable/disable via config or file management
+
 ## Tech Stack
 
 ### Frontend
@@ -117,9 +124,14 @@ Open http://localhost:4200 in your browser.
 │   │   ├── middleware/         # Auth, security, error handling
 │   │   ├── models/             # Data stores (user, token, etc.)
 │   │   ├── db/                 # Database connection and schema
+│   │   ├── plugins/            # Plugin system core
 │   │   ├── email/              # Email providers (stub, SMTP)
 │   │   ├── utils/              # JWT, password, TOTP utilities
 │   │   └── types/              # TypeScript definitions
+│   ├── plugins/                # Plugin implementations
+│   │   ├── audit-database.ts   # Audit logging plugin
+│   │   ├── auth-emails.ts      # Email notification plugin
+│   │   └── example-logger.ts   # Example/demo plugin
 │   ├── openapi.yaml            # API specification
 │   └── tests/                  # Jest tests
 │
@@ -217,6 +229,7 @@ See `backend/.env.example` for all options. Key variables:
 | `POSTGRES_*` | - | Database connection |
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `TOTP_ISSUER` | MyApp | Name in authenticator apps |
+| `DISABLED_PLUGINS` | - | Comma-separated plugin names to disable |
 
 ### Email Configuration
 
@@ -282,6 +295,148 @@ readonly isAuthenticated = computed(() => this.isAuthenticatedSignal());
 - `guestGuard` - Requires unauthenticated
 - `emailVerifiedGuard` - Requires verified email
 - `twoFactorGuard` - Requires 2FA pending state
+
+## Plugin System
+
+The backend features a powerful plugin system for extending functionality without modifying core code. Plugins can react to authentication events, block operations, send notifications, and more.
+
+### Built-in Plugins
+
+| Plugin | Mode | Description |
+|--------|------|-------------|
+| `audit-database` | async | Writes security events to the audit_logs table |
+| `auth-emails` | async | Sends verification and password reset emails |
+| `example-logger` | async | Logs all events to console (demo plugin) |
+
+### Available Events
+
+Plugins can subscribe to any of these 18 events:
+
+**Auth Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `auth.register.before` | Before user is created | Yes |
+| `auth.register` | After successful registration | No |
+| `auth.login` | Successful login | No |
+| `auth.login.failed` | Failed login attempt | No |
+| `auth.logout` | User logged out | No |
+| `auth.logout.all` | All sessions terminated | No |
+
+**Password Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `auth.password.reset.request` | Password reset requested | No |
+| `auth.password.reset` | Password was reset | No |
+| `auth.password.change` | Password changed | No |
+
+**Email Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `auth.email.verified` | Email verified | No |
+| `auth.email.resend` | Verification email resent | No |
+
+**2FA Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `auth.2fa.enabled` | 2FA activated | No |
+| `auth.2fa.disabled` | 2FA deactivated | No |
+| `auth.2fa.verify` | 2FA verification succeeded | No |
+| `auth.2fa.verify.failed` | 2FA verification failed | No |
+| `auth.2fa.backup.used` | Backup code used | No |
+| `auth.2fa.backup.regenerated` | Backup codes regenerated | No |
+
+**Profile Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `user.profile.updated` | Profile info changed | No |
+
+### Creating a Plugin
+
+Create a file in `backend/plugins/` with a default export:
+
+```typescript
+// backend/plugins/my-plugin.ts
+import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
+
+const myPlugin: Plugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+  events: ['auth.register', 'auth.login'], // or '*' for all events
+  mode: 'async', // 'async' = fire-and-forget, 'sync' = can block
+
+  async handle(ctx: PluginContext): Promise<PluginResult> {
+    console.log(`Event: ${ctx.event}`, {
+      userId: ctx.userId,
+      email: ctx.email,
+      ip: ctx.ip,
+      data: ctx.data,
+    });
+
+    return { success: true };
+  },
+
+  async onLoad() {
+    console.log('Plugin loaded!');
+  },
+};
+
+export default myPlugin;
+```
+
+### Blocking Events (Sync Plugins)
+
+Sync plugins can block operations by returning `{ success: false }`:
+
+```typescript
+const registrationBlocker: Plugin = {
+  name: 'registration-blocker',
+  events: ['auth.register.before'],
+  mode: 'sync', // Required for blocking
+  priority: 10, // Lower = runs first (default: 100)
+
+  async handle(ctx: PluginContext): Promise<PluginResult> {
+    const email = ctx.data.email as string;
+
+    // Block disposable email domains
+    if (email.endsWith('@tempmail.com')) {
+      return {
+        success: false,
+        error: 'Disposable email addresses are not allowed',
+        data: { code: 'DISPOSABLE_EMAIL' },
+      };
+    }
+
+    return { success: true };
+  },
+};
+```
+
+### Plugin Context
+
+Every plugin handler receives a `PluginContext`:
+
+```typescript
+interface PluginContext {
+  event: PluginEvent;      // Event name
+  userId?: string;         // User ID (if available)
+  email?: string;          // User email (if available)
+  ip?: string;             // Client IP address
+  userAgent?: string;      // Client user agent
+  timestamp: Date;         // When the event occurred
+  data: Record<string, unknown>; // Event-specific data
+}
+```
+
+### Enabling/Disabling Plugins
+
+**File-based:** Plugins auto-load from `backend/plugins/`. To disable, rename or remove the file.
+
+**Config-based:** Use the `DISABLED_PLUGINS` environment variable:
+
+```bash
+# Disable specific plugins by name
+DISABLED_PLUGINS=example-logger,audit-database
+```
 
 ## Testing
 

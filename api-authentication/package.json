@@ -1,12 +1,12 @@
 {
-  "name": "backend",
+  "name": "api-authentication",
   "version": "1.0.0",
-  "main": "../dist/backend/app.js",
+  "main": "../dist/api-authentication/app.js",
   "scripts": {
-    "build": "tsc && cp openapi.yaml ../dist/backend/",
-    "start": "node ../dist/backend/server.js",
+    "build": "tsc && cp openapi.yaml ../dist/api-authentication/",
+    "start": "node ../dist/api-authentication/server.js",
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
-    "clean": "rm -rf ../dist/backend",
+    "clean": "rm -rf ../dist/api-authentication",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-This is a **monorepo** containing an Angular 19 frontend and Express.js backend.
+This is a **monorepo** containing an Angular 19 frontend and Express.js authentication API.
 
 ```
 /
-├── backend/                    # Express.js OpenAPI application
+├── api-authentication/         # Express.js OpenAPI authentication API
 │   ├── src/
 │   │   ├── app.ts              # Express app factory (createApp())
 │   │   ├── server.ts           # Development server (not used in production)
@@ -23,8 +23,8 @@ This is a **monorepo** containing an Angular 19 frontend and Express.js backend.
 │   │   └── utils/              # Logger, password, JWT, TOTP, shortId helpers
 │   ├── openapi.yaml            # OpenAPI specification
 │   ├── tests/                  # Jest tests
-│   ├── package.json            # Backend dependencies
-│   └── tsconfig.json           # Backend TypeScript config
+│   ├── package.json            # API dependencies
+│   └── tsconfig.json           # API TypeScript config
 ├── frontend/                   # Angular 19 application
 │   ├── src/
 │   │   ├── app/
@@ -46,7 +46,7 @@ This is a **monorepo** containing an Angular 19 frontend and Express.js backend.
 │   ├── *.rest                  # Endpoint test files
 │   └── .env.example            # Token storage template
 ├── dist/                       # Build output
-│   └── backend/                # Compiled Express code
+│   └── api-authentication/     # Compiled Express code
 ├── docker-compose.yml          # PostgreSQL database container
 ├── package.json                # Root workspace package.json
 └── tsconfig.json               # Root TypeScript config
@@ -55,21 +55,21 @@ This is a **monorepo** containing an Angular 19 frontend and Express.js backend.
 ## Build and Run Commands
 
 ### Root Level (Monorepo)
-- **Build All**: `npm run build` - Builds backend and frontend
-- **Build Backend**: `npm run build:backend` - Compile backend TypeScript to `dist/backend/`
+- **Build All**: `npm run build` - Builds API and frontend
+- **Build API**: `npm run build:api` - Compile API TypeScript to `dist/api-authentication/`
 - **Build Frontend**: `npm run build:frontend` - Build Angular app to `frontend/dist/`
-- **Dev Both**: `npm run dev` - Run backend and frontend concurrently
+- **Dev Both**: `npm run dev` - Run API and frontend concurrently
 - **Clean**: `npm run clean` - Remove all build artifacts
 
-### Backend Development
-- **Development**: `npm run dev:backend` - Hot-reloading server on port 3000
-- **Test**: `npm run test:backend` - Run Jest tests
-- **Direct**: `cd backend && npm run dev` - Run backend server directly
+### API Development
+- **Development**: `npm run dev:api` - Hot-reloading server on port 3000
+- **Test**: `npm run test:api` - Run Jest tests
+- **Direct**: `cd api-authentication && npm run dev` - Run API server directly
 
 ### Frontend Development
 - **Development**: `npm run dev:frontend` - Run Angular dev server on port 4200
 - **Direct**: `cd frontend && npm start` - Run frontend directly
-- **Proxy**: Dev server proxies `/api/*` to backend at `http://localhost:3000`
+- **Proxy**: Dev server proxies `/api/*` to API at `http://localhost:3000`
 
 ### Database
 - **Start PostgreSQL**: `docker-compose up -d` - Start PostgreSQL container
@@ -86,7 +86,7 @@ The application uses PostgreSQL for persistent storage. Run with Docker:
 docker-compose up -d
 ```
 
-Database configuration (see `backend/.env.example`):
+Database configuration (see `api-authentication/.env.example`):
 ```bash
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
@@ -97,7 +97,7 @@ POSTGRES_DB=authdb
 
 ### Schema
 
-Tables are auto-created on server startup (`backend/src/db/schema.ts`):
+Tables are auto-created on server startup (`api-authentication/src/db/schema.ts`):
 
 - **users** - User accounts with email, password hash, profile info
 - **password_reset_tokens** - Hashed tokens for forgot-password flow (SHA256)
@@ -113,7 +113,7 @@ Tables are auto-created on server startup (`backend/src/db/schema.ts`):
 User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 - Example: `4jPYQW43CZfw7Lm7JLe5Hl`
 - Same entropy as UUID v4 but more compact
-- Generated via `backend/src/utils/shortId.ts`
+- Generated via `api-authentication/src/utils/shortId.ts`
 
 ## API Endpoints
 
@@ -215,14 +215,14 @@ SMTP_FROM=noreply@example.com
 
 ### Backend: OpenAPI-First Design
 
-The backend is an OpenAPI-driven Express.js application using **automatic route registration** via `express-openapi-validator`'s `operationHandlers` feature.
+The API is an OpenAPI-driven Express.js application using **automatic route registration** via `express-openapi-validator`'s `operationHandlers` feature.
 
 **Route registration happens automatically** - routes are NOT manually defined in code:
 
-1. **OpenAPI Spec is Source of Truth** (`backend/openapi.yaml`):
+1. **OpenAPI Spec is Source of Truth** (`api-authentication/openapi.yaml`):
    - Each operation defines both `operationId` and `x-eov-operation-handler`
    - These must match the controller filename exactly
-   - Example: `operationId: authLogin` → `x-eov-operation-handler: auth/login` → `backend/src/controllers/auth/login.ts`
+   - Example: `operationId: authLogin` → `x-eov-operation-handler: auth/login` → `api-authentication/src/controllers/auth/login.ts`
 
 2. **Controller Convention**:
    - Controllers in subdirectories use path format: `auth/login` → `controllers/auth/login.ts`
@@ -248,7 +248,7 @@ Request → Security middleware (Helmet, CORS, Rate limiting)
 
 ### Error Response Structure
 
-All errors follow the schema defined in `backend/openapi.yaml`:
+All errors follow the schema defined in `api-authentication/openapi.yaml`:
 ```typescript
 {
   error: {
@@ -337,25 +337,25 @@ Use VS Code REST Client extension with `rests/auth.rest`:
 
 ## Adding New Backend Endpoints
 
-1. **Add operation to `backend/openapi.yaml`**:
+1. **Add operation to `api-authentication/openapi.yaml`**:
    - Define path, method, parameters, request/response schemas
    - Set `operationId` (e.g., `authUpdateProfile`)
    - Set `x-eov-operation-handler` (e.g., `auth/updateProfile`)
 
-2. **Create controller file**: `backend/src/controllers/auth/updateProfile.ts`
+2. **Create controller file**: `api-authentication/src/controllers/auth/updateProfile.ts`
    - Export default async function
    - Access validated data from `req.body`, `req.params`, `req.query`
    - Access authenticated user via `req.user`
    - Return responses matching OpenAPI schema
 
-3. **Add model methods if needed**: Update `backend/src/models/userStore.ts`
+3. **Add model methods if needed**: Update `api-authentication/src/models/userStore.ts`
 
 4. **Restart server**: nodemon auto-restarts on file changes
 
 ## Important Constraints
 
 ### Backend
-- **No manual route definitions** - adding routes in `backend/src/app.ts` will create conflicts
+- **No manual route definitions** - adding routes in `api-authentication/src/app.ts` will create conflicts
 - **Controller filenames must exactly match** the `x-eov-operation-handler` value
 - **Default exports required** - named exports won't be found by the validator
 - **Authentication runs before validation** - auth middleware processes requests before OpenAPI validator
@@ -395,7 +395,7 @@ These decisions are documented in `SECURITY.md` and `security_report.md`.
 
 ## Configuration Reference
 
-See `backend/.env.example` for all configuration options:
+See `api-authentication/.env.example` for all configuration options:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

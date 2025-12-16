@@ -5,7 +5,6 @@ import { backupCodeStore } from '../../../models/backupCodeStore';
 import { verifyTOTPCode } from '../../../utils/totp';
 import { verifyPassword } from '../../../utils/password';
 import { ErrorResponse } from '../../../types/common.types';
-import { audit } from '../../../utils/auditLogger';
 import { emitEvent } from '../../../utils/events';
 
 interface Disable2FABody {
@@ -103,8 +102,7 @@ export default async function disable2FA(req: Request, res: Response, next: Next
     // Delete backup codes
     await backupCodeStore.deleteForUser(userId);
 
-    // Audit 2FA disabled
-    await audit.twoFactorDisabled(req, userId);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.2fa.disabled', req, {
       userId,
       email: user.email,

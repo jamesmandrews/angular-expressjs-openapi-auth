@@ -9,11 +9,9 @@ import { generateAccessToken } from '../../utils/jwt';
 import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { RegisterRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
-import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
 import { getUserTypeConfig, getRoleForUserType, isAllowedUserType } from '../../config/userTypes';
-import { audit } from '../../utils/auditLogger';
-import { emitEvent } from '../../utils/events';
+import { emitEvent, emitBlockingEvent } from '../../utils/events';
 
 const getVerificationUrl = (): string => {
   return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:4200/verify-email';
@@ -65,6 +63,25 @@ export default async function register(req: Request, res: Response, next: NextFu
       return;
     }
 
+    // Emit pre-registration event (allows plugins to block registration)
+    const beforeResult = await emitBlockingEvent('auth.register.before', req, {
+      email,
+      firstName,
+      lastName,
+      userType: effectiveType,
+    });
+
+    if (beforeResult.blocked) {
+      const errorResponse: ErrorResponse = {
+        error: {
+          code: beforeResult.code || 'REGISTRATION_BLOCKED',
+          message: beforeResult.error || 'Registration blocked by policy',
+        },
+      };
+      res.status(403).json(errorResponse);
+      return;
+    }
+
     // Hash password and create user
     const passwordHash = await hashPassword(password);
     const user = await userStore.create({ email, password, firstName, lastName }, passwordHash);
@@ -78,27 +95,9 @@ export default async function register(req: Request, res: Response, next: NextFu
       await roleStore.assignRole(user.id, ROLE_IDS.USER);
     }
 
-    // Create verification token and send email
+    // Create verification token
     const verificationToken = await emailVerificationTokenStore.create(user.id);
     const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.rawToken}`;
-
-    const emailProvider = getEmailProvider();
-    const result = await emailProvider.send({
-      to: email,
-      subject: 'Verify Your Email Address',
-      text: `Welcome! Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you did not create an account, please ignore this email.`,
-      html: `
-        <h2>Welcome!</h2>
-        <p>Please verify your email address by clicking the link below:</p>
-        <p><a href="${verificationUrl}">${verificationUrl}</a></p>
-        <p>This link will expire in 24 hours.</p>
-        <p>If you did not create an account, please ignore this email.</p>
-      `,
-    });
-
-    if (!result.success) {
-      logger.error(`Failed to send verification email to ${email}`, { error: result.error });
-    }
 
     // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(user.id);
@@ -122,15 +121,13 @@ export default async function register(req: Request, res: Response, next: NextFu
     });
     setRefreshTokenCookie(res, refreshToken.rawToken);
 
-    // Audit successful registration
-    await audit.register(req, user.id, user.email, effectiveType);
-
-    // Emit plugin event
+    // Emit plugin event (audit + email handled via plugins)
     await emitEvent('auth.register', req, {
       email: user.email,
       userId: user.id,
       userType: effectiveType,
       roles: roleNames,
+      verificationUrl,
     });
 
     res.status(201).json({

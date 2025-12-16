@@ -3,7 +3,6 @@ import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { userStore } from '../../models/userStore';
 import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ErrorResponse } from '../../types/common.types';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 import logger from '../../utils/logger';
 
@@ -32,8 +31,7 @@ export default async function logoutAll(req: Request, res: Response, next: NextF
     // Clear the current session's refresh token cookie
     clearRefreshTokenCookie(res);
 
-    // Audit logout all
-    await audit.logout(req, userId);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.logout.all', req, {
       userId,
       sessionsRevoked: revokedCount,

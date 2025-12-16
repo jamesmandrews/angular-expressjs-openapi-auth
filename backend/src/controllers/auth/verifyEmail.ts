@@ -6,7 +6,6 @@ import { scopeStore } from '../../models/scopeStore';
 import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 
 export default async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -43,8 +42,7 @@ export default async function verifyEmail(req: Request, res: Response, next: Nex
     // Mark token as used
     await emailVerificationTokenStore.markUsed(token);
 
-    // Audit email verification
-    await audit.emailVerified(req, user.id);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.email.verified', req, {
       userId: user.id,
       email: user.email,

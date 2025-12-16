@@ -3,7 +3,6 @@ import { twoFactorStore } from '../../../models/twoFactorStore';
 import { backupCodeStore } from '../../../models/backupCodeStore';
 import { verifyTOTPCode } from '../../../utils/totp';
 import { ErrorResponse } from '../../../types/common.types';
-import { audit } from '../../../utils/auditLogger';
 import { emitEvent } from '../../../utils/events';
 
 interface VerifySetupBody {
@@ -72,8 +71,7 @@ export default async function verifySetup(req: Request, res: Response, next: Nex
     // Generate backup codes
     const backupCodes = await backupCodeStore.generateForUser(userId);
 
-    // Audit 2FA enabled
-    await audit.twoFactorEnabled(req, userId);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.2fa.enabled', req, { userId });
 
     res.status(200).json({

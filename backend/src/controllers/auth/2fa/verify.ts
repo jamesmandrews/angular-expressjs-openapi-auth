@@ -10,7 +10,6 @@ import { generateAccessToken } from '../../../utils/jwt';
 import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../../utils/cookies';
 import { toUserPublic } from '../../../types/auth.types';
 import { ErrorResponse } from '../../../types/common.types';
-import { audit } from '../../../utils/auditLogger';
 import { emitEvent } from '../../../utils/events';
 
 interface Verify2FABody {
@@ -74,8 +73,7 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
         usedBackupCode = true;
         remainingBackupCodes = backupResult.remainingCodes;
 
-        // Audit backup code usage
-        await audit.backupCodeUsed(req, userId, remainingBackupCodes || 0);
+        // Emit event (audit handled via plugin)
         await emitEvent('auth.2fa.backup.used', req, {
           userId,
           remainingCodes: remainingBackupCodes,
@@ -84,8 +82,11 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
     }
 
     if (!isValid) {
-      // Audit failed 2FA attempt
-      await audit.twoFactorVerify(req, userId, false, usedBackupCode ? 'backup_code' : 'totp');
+      // Emit failure event (audit handled via plugin)
+      await emitEvent('auth.2fa.verify.failed', req, {
+        userId,
+        method: usedBackupCode ? 'backup_code' : 'totp',
+      });
 
       const errorResponse: ErrorResponse = {
         error: {
@@ -132,8 +133,7 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
     });
     setRefreshTokenCookie(res, refreshToken.rawToken);
 
-    // Audit successful 2FA verification
-    await audit.twoFactorVerify(req, userId, true, usedBackupCode ? 'backup_code' : 'totp');
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.2fa.verify', req, {
       userId,
       email: user.email,

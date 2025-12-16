@@ -4,7 +4,6 @@ import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { verifyPassword, hashPassword, validatePasswordStrength } from '../../utils/password';
 import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ErrorResponse } from '../../types/common.types';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 import logger from '../../utils/logger';
 
@@ -86,8 +85,7 @@ export default async function changePassword(req: Request, res: Response, next: 
     // Clear the current session's refresh token cookie
     clearRefreshTokenCookie(res);
 
-    // Audit password change
-    await audit.passwordChange(req, userId);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.password.change', req, {
       userId,
       email: user.email,

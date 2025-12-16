@@ -9,7 +9,6 @@ import { generateAccessToken, generateTwoFactorPendingToken } from '../../utils/
 import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/cookies';
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 
 export default async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -19,7 +18,6 @@ export default async function login(req: Request, res: Response, next: NextFunct
     // Find user by email
     const user = await userStore.getByEmail(email);
     if (!user) {
-      await audit.loginFailure(req, email, 'user_not_found');
       await emitEvent('auth.login.failed', req, { email, reason: 'user_not_found' });
       const errorResponse: ErrorResponse = {
         error: {
@@ -34,7 +32,6 @@ export default async function login(req: Request, res: Response, next: NextFunct
     // Verify password
     const isValidPassword = await verifyPassword(password, user.passwordHash);
     if (!isValidPassword) {
-      await audit.loginFailure(req, email, 'invalid_password');
       await emitEvent('auth.login.failed', req, { email, reason: 'invalid_password' });
       const errorResponse: ErrorResponse = {
         error: {
@@ -58,8 +55,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
       // Generate partial token for 2FA verification
       const partialToken = generateTwoFactorPendingToken(user.id, user.email);
 
-      // Audit partial login (2FA required)
-      await audit.loginSuccess(req, user.id, user.email);
+      // Emit event (audit handled via plugin)
       await emitEvent('auth.login', req, {
         email: user.email,
         userId: user.id,
@@ -98,8 +94,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
     });
     setRefreshTokenCookie(res, refreshToken.rawToken);
 
-    // Audit successful login
-    await audit.loginSuccess(req, user.id, user.email);
+    // Emit event (audit handled via plugin)
     await emitEvent('auth.login', req, {
       email: user.email,
       userId: user.id,

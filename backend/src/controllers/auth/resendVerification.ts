@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { emailVerificationTokenStore } from '../../models/tokenStore';
 import { ErrorResponse } from '../../types/common.types';
-import { getEmailProvider } from '../../email';
-import logger from '../../utils/logger';
 import { emitEvent } from '../../utils/events';
 
 const getVerificationUrl = (): string => {
@@ -50,28 +48,11 @@ export default async function resendVerification(req: Request, res: Response, ne
     const verificationToken = await emailVerificationTokenStore.create(user.id);
     const verificationUrl = `${getVerificationUrl()}?token=${verificationToken.rawToken}`;
 
-    // Send verification email
-    const emailProvider = getEmailProvider();
-    const result = await emailProvider.send({
-      to: user.email,
-      subject: 'Verify Your Email Address',
-      text: `Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you did not request this, please ignore this email.`,
-      html: `
-        <h2>Email Verification</h2>
-        <p>Please verify your email address by clicking the link below:</p>
-        <p><a href="${verificationUrl}">${verificationUrl}</a></p>
-        <p>This link will expire in 24 hours.</p>
-        <p>If you did not request this, please ignore this email.</p>
-      `,
-    });
-
-    if (!result.success) {
-      logger.error(`Failed to send verification email to ${user.email}`, { error: result.error });
-    }
-
+    // Emit plugin event (email sent via auth-emails plugin)
     await emitEvent('auth.email.resend', req, {
       userId: user.id,
       email: user.email,
+      verificationUrl,
     });
 
     res.status(200).json({

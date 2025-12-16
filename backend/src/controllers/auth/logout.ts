@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { tokenBlacklistStore } from '../../models/tokenStore';
 import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { getRefreshTokenFromCookie, clearRefreshTokenCookie } from '../../utils/cookies';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 
 export default async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -24,9 +23,8 @@ export default async function logout(req: Request, res: Response, next: NextFunc
     // Clear the refresh token cookie
     clearRefreshTokenCookie(res);
 
-    // Audit logout
+    // Emit event (audit handled via plugin)
     if (req.user?.id) {
-      await audit.logout(req, req.user.id);
       await emitEvent('auth.logout', req, { userId: req.user.id });
     }
 

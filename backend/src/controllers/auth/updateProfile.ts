@@ -5,7 +5,6 @@ import { scopeStore } from '../../models/scopeStore';
 import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
-import { audit } from '../../utils/auditLogger';
 import { emitEvent } from '../../utils/events';
 
 interface UpdateProfileBody {
@@ -55,11 +54,10 @@ export default async function updateProfile(req: Request, res: Response, next: N
       return;
     }
 
-    // Audit profile update
+    // Emit event (audit handled via plugin)
     const updatedFields: string[] = [];
     if (firstName !== undefined) updatedFields.push('firstName');
     if (lastName !== undefined) updatedFields.push('lastName');
-    await audit.profileUpdated(req, updatedUser.id, updatedFields);
     await emitEvent('user.profile.updated', req, {
       userId: updatedUser.id,
       email: updatedUser.email,

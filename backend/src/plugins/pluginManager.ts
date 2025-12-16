@@ -4,6 +4,28 @@ import path from 'path';
 import fs from 'fs';
 
 /**
+ * Result from emitting a blocking event
+ */
+export interface EmitBlockingResult {
+  blocked: boolean;
+  error?: string;
+  code?: string;
+}
+
+/**
+ * Get list of disabled plugins from config
+ */
+function getDisabledPlugins(): Set<string> {
+  const disabled = process.env.DISABLED_PLUGINS || '';
+  return new Set(
+    disabled
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+  );
+}
+
+/**
  * Plugin Manager
  *
  * Handles loading, registering, and dispatching events to plugins.
@@ -45,6 +67,11 @@ class PluginManager {
 
     logger.info(`Found ${files.length} plugin file(s) in ${pluginsDir}`);
 
+    const disabledPlugins = getDisabledPlugins();
+    if (disabledPlugins.size > 0) {
+      logger.info(`Disabled plugins: ${Array.from(disabledPlugins).join(', ')}`);
+    }
+
     for (const file of files) {
       try {
         const pluginPath = path.join(pluginsDir, file);
@@ -52,6 +79,12 @@ class PluginManager {
         const plugin: Plugin = module.default || module;
 
         if (this.isValidPlugin(plugin)) {
+          // Check if plugin is disabled via config
+          if (disabledPlugins.has(plugin.name)) {
+            logger.info(`Skipping disabled plugin: ${plugin.name}`);
+            continue;
+          }
+
           await this.register(plugin);
           logger.info(`Loaded plugin: ${plugin.name} (${plugin.mode} mode)`);
         } else {
@@ -156,6 +189,48 @@ class PluginManager {
         logger.error(`Async plugin ${plugin.name} error on ${event}:`, err);
       });
     }
+  }
+
+  /**
+   * Emit a blocking event that can be stopped by sync plugins
+   *
+   * Returns whether any plugin blocked the operation.
+   * Only sync plugins can block - async plugins are ignored for blocking events.
+   */
+  async emitBlocking(
+    event: PluginEvent,
+    ctx: Omit<PluginContext, 'event' | 'timestamp'>
+  ): Promise<EmitBlockingResult> {
+    const fullCtx: PluginContext = {
+      ...ctx,
+      event,
+      timestamp: new Date(),
+    };
+
+    // Only run sync handlers for blocking events
+    const syncPlugins = this.syncHandlers.get(event) || [];
+    for (const plugin of syncPlugins) {
+      try {
+        const result = await plugin.handle(fullCtx);
+        if (!result.success) {
+          logger.info(`Plugin ${plugin.name} blocked ${event}: ${result.error}`);
+          return {
+            blocked: true,
+            error: result.error || 'Operation blocked by plugin',
+            code: result.data?.code as string | undefined,
+          };
+        }
+      } catch (err) {
+        logger.error(`Sync plugin ${plugin.name} threw error on ${event}:`, err);
+        // Treat exceptions as blocking to be safe
+        return {
+          blocked: true,
+          error: 'Plugin error',
+        };
+      }
+    }
+
+    return { blocked: false };
   }
 
   /**

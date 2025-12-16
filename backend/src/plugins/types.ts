@@ -5,6 +5,7 @@
  */
 export type PluginEvent =
   // Auth events
+  | 'auth.register.before'
   | 'auth.register'
   | 'auth.login'
   | 'auth.login.failed'
@@ -21,6 +22,7 @@ export type PluginEvent =
   | 'auth.2fa.enabled'
   | 'auth.2fa.disabled'
   | 'auth.2fa.verify'
+  | 'auth.2fa.verify.failed'
   | 'auth.2fa.backup.used'
   | 'auth.2fa.backup.regenerated'
   // Profile events
@@ -86,6 +88,7 @@ export interface Plugin {
  * All available plugin event types
  */
 export const ALL_PLUGIN_EVENTS: PluginEvent[] = [
+  'auth.register.before',
   'auth.register',
   'auth.login',
   'auth.login.failed',
@@ -99,6 +102,7 @@ export const ALL_PLUGIN_EVENTS: PluginEvent[] = [
   'auth.2fa.enabled',
   'auth.2fa.disabled',
   'auth.2fa.verify',
+  'auth.2fa.verify.failed',
   'auth.2fa.backup.used',
   'auth.2fa.backup.regenerated',
   'user.profile.updated',

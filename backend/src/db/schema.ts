@@ -39,6 +39,16 @@ export async function initializeDatabase(): Promise<void> {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS token_salt VARCHAR(22)
   `);
 
+  // Add canonical_email column for duplicate detection (strips plus aliases, dots for Gmail)
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS canonical_email VARCHAR(255)
+  `);
+
+  // Create index on canonical_email for duplicate lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_users_canonical_email ON users(canonical_email)
+  `);
+
   // Create password reset tokens table (with hashed tokens for security)
   await query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (

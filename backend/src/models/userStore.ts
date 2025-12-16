@@ -1,10 +1,12 @@
 import { query, queryOne } from '../db/connection';
 import { User, RegisterRequest } from '../types/auth.types';
 import { generateShortId } from '../utils/shortId';
+import { canonicalizeEmail } from '../utils/email';
 
 interface UserRow {
   id: string;
   email: string;
+  canonical_email: string | null;
   password_hash: string;
   first_name: string | null;
   last_name: string | null;
@@ -32,11 +34,14 @@ class UserStore {
   async create(data: RegisterRequest, passwordHash: string): Promise<User> {
     const id = generateShortId();
     const tokenSalt = generateShortId();
+    const email = data.email.toLowerCase();
+    const canonical = canonicalizeEmail(email);
+
     const rows = await query<UserRow>(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, token_salt)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (id, email, canonical_email, password_hash, first_name, last_name, token_salt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [id, data.email.toLowerCase(), passwordHash, data.firstName || null, data.lastName || null, tokenSalt]
+      [id, email, canonical, passwordHash, data.firstName || null, data.lastName || null, tokenSalt]
     );
     return rowToUser(rows[0]);
   }
@@ -63,6 +68,31 @@ class UserStore {
       [email.toLowerCase()]
     );
     return row?.exists || false;
+  }
+
+  /**
+   * Check if a canonical email already exists in the database
+   * This detects duplicate accounts using email aliases (e.g., user+test@gmail.com)
+   */
+  async canonicalEmailExists(email: string): Promise<boolean> {
+    const canonical = canonicalizeEmail(email.toLowerCase());
+    const row = await queryOne<{ exists: boolean }>(
+      'SELECT EXISTS(SELECT 1 FROM users WHERE canonical_email = $1) as exists',
+      [canonical]
+    );
+    return row?.exists || false;
+  }
+
+  /**
+   * Get user by canonical email (finds accounts even with email aliases)
+   */
+  async getByCanonicalEmail(email: string): Promise<User | undefined> {
+    const canonical = canonicalizeEmail(email.toLowerCase());
+    const row = await queryOne<UserRow>(
+      'SELECT * FROM users WHERE canonical_email = $1',
+      [canonical]
+    );
+    return row ? rowToUser(row) : undefined;
   }
 
   async updatePassword(userId: string, newPasswordHash: string): Promise<User | undefined> {

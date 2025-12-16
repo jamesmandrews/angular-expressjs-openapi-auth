@@ -7,14 +7,14 @@
     "api-authentication"
   ],
   "scripts": {
-    "build": "npm run build:api && npm run build:frontend",
-    "build:api": "cd api-authentication && npm run build",
+    "build": "npm run build:api:auth && npm run build:frontend",
+    "build:api:auth": "cd api-authentication && npm run build",
     "build:frontend": "cd frontend && npm run build",
     "build:all": "npm run build",
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
-    "dev:api": "cd api-authentication && npm run dev",
+    "dev": "concurrently \"npm run dev:api:auth\" \"npm run dev:frontend\"",
+    "dev:api:auth": "cd api-authentication && npm run dev",
     "dev:frontend": "cd frontend && npm start",
-    "test:api": "cd api-authentication && npm test",
+    "test:api:auth": "cd api-authentication && npm test",
     "test:frontend": "cd frontend && npm test",
     "clean": "rm -rf dist && cd api-authentication && npm run clean && cd ../frontend && rm -rf dist",
     "install:all": "npm install && cd api-authentication && npm install && cd ../frontend && npm install"

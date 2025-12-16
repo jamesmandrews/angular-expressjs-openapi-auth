@@ -56,14 +56,14 @@ This is a **monorepo** containing an Angular 19 frontend and Express.js authenti
 
 ### Root Level (Monorepo)
 - **Build All**: `npm run build` - Builds API and frontend
-- **Build API**: `npm run build:api` - Compile API TypeScript to `dist/api-authentication/`
+- **Build Auth API**: `npm run build:api:auth` - Compile API TypeScript to `dist/api-authentication/`
 - **Build Frontend**: `npm run build:frontend` - Build Angular app to `frontend/dist/`
 - **Dev Both**: `npm run dev` - Run API and frontend concurrently
 - **Clean**: `npm run clean` - Remove all build artifacts
 
-### API Development
-- **Development**: `npm run dev:api` - Hot-reloading server on port 3000
-- **Test**: `npm run test:api` - Run Jest tests
+### Auth API Development
+- **Development**: `npm run dev:api:auth` - Hot-reloading server on port 3000
+- **Test**: `npm run test:api:auth` - Run Jest tests
 - **Direct**: `cd api-authentication && npm run dev` - Run API server directly
 
 ### Frontend Development

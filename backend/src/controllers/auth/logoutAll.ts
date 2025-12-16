@@ -4,6 +4,7 @@ import { userStore } from '../../models/userStore';
 import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 import logger from '../../utils/logger';
 
 export default async function logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -33,6 +34,10 @@ export default async function logoutAll(req: Request, res: Response, next: NextF
 
     // Audit logout all
     await audit.logout(req, userId);
+    await emitEvent('auth.logout.all', req, {
+      userId,
+      sessionsRevoked: revokedCount,
+    });
 
     res.status(200).json({
       message: `Successfully logged out from all devices. ${revokedCount} session(s) terminated.`,

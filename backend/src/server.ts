@@ -1,9 +1,11 @@
 import 'dotenv/config';
+import path from 'path';
 import { Server } from 'http';
 import { createApp } from './app';
 import logger from './utils/logger';
 import { testConnection, closePool } from './db/connection';
 import { initializeDatabase } from './db/schema';
+import { pluginManager } from './plugins';
 
 const PORT = process.env.PORT || 3000;
 const SHUTDOWN_TIMEOUT = parseInt(process.env.SHUTDOWN_TIMEOUT || '10000');
@@ -19,6 +21,10 @@ async function startServer() {
   }
 
   await initializeDatabase();
+
+  // Load plugins from the plugins directory
+  const pluginsDir = path.join(__dirname, '..', 'plugins');
+  await pluginManager.loadPlugins(pluginsDir);
 
   const app = createApp();
 

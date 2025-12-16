@@ -5,6 +5,7 @@ import { verifyPassword, hashPassword, validatePasswordStrength } from '../../ut
 import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 import logger from '../../utils/logger';
 
 interface ChangePasswordBody {
@@ -87,6 +88,10 @@ export default async function changePassword(req: Request, res: Response, next: 
 
     // Audit password change
     await audit.passwordChange(req, userId);
+    await emitEvent('auth.password.change', req, {
+      userId,
+      email: user.email,
+    });
 
     res.status(200).json({
       message: 'Password changed successfully. You have been logged out from all devices.',

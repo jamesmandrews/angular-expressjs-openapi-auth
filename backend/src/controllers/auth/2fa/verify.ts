@@ -11,6 +11,7 @@ import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../../utils
 import { toUserPublic } from '../../../types/auth.types';
 import { ErrorResponse } from '../../../types/common.types';
 import { audit } from '../../../utils/auditLogger';
+import { emitEvent } from '../../../utils/events';
 
 interface Verify2FABody {
   code: string;
@@ -75,6 +76,10 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
 
         // Audit backup code usage
         await audit.backupCodeUsed(req, userId, remainingBackupCodes || 0);
+        await emitEvent('auth.2fa.backup.used', req, {
+          userId,
+          remainingCodes: remainingBackupCodes,
+        });
       }
     }
 
@@ -129,6 +134,11 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
 
     // Audit successful 2FA verification
     await audit.twoFactorVerify(req, userId, true, usedBackupCode ? 'backup_code' : 'totp');
+    await emitEvent('auth.2fa.verify', req, {
+      userId,
+      email: user.email,
+      method: usedBackupCode ? 'backup_code' : 'totp',
+    });
 
     const response: {
       message: string;

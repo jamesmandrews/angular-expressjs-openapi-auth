@@ -7,6 +7,7 @@ import { twoFactorStore } from '../../models/twoFactorStore';
 import { toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 export default async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -44,6 +45,10 @@ export default async function verifyEmail(req: Request, res: Response, next: Nex
 
     // Audit email verification
     await audit.emailVerified(req, user.id);
+    await emitEvent('auth.email.verified', req, {
+      userId: user.id,
+      email: user.email,
+    });
 
     // Get user roles and scopes
     const userRoles = await roleStore.getUserRoles(user.id);

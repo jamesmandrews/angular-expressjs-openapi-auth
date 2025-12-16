@@ -6,6 +6,7 @@ import { verifyTOTPCode } from '../../../utils/totp';
 import { verifyPassword } from '../../../utils/password';
 import { ErrorResponse } from '../../../types/common.types';
 import { audit } from '../../../utils/auditLogger';
+import { emitEvent } from '../../../utils/events';
 
 interface Disable2FABody {
   password: string;
@@ -104,6 +105,10 @@ export default async function disable2FA(req: Request, res: Response, next: Next
 
     // Audit 2FA disabled
     await audit.twoFactorDisabled(req, userId);
+    await emitEvent('auth.2fa.disabled', req, {
+      userId,
+      email: user.email,
+    });
 
     res.status(200).json({
       message: 'Two-factor authentication has been disabled.',

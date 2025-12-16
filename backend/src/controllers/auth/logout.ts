@@ -3,6 +3,7 @@ import { tokenBlacklistStore } from '../../models/tokenStore';
 import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { getRefreshTokenFromCookie, clearRefreshTokenCookie } from '../../utils/cookies';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 export default async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -26,6 +27,7 @@ export default async function logout(req: Request, res: Response, next: NextFunc
     // Audit logout
     if (req.user?.id) {
       await audit.logout(req, req.user.id);
+      await emitEvent('auth.logout', req, { userId: req.user.id });
     }
 
     res.status(200).json({

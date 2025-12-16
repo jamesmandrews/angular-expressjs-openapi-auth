@@ -13,6 +13,7 @@ import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
 import { getUserTypeConfig, getRoleForUserType, isAllowedUserType } from '../../config/userTypes';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 const getVerificationUrl = (): string => {
   return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:4200/verify-email';
@@ -123,6 +124,14 @@ export default async function register(req: Request, res: Response, next: NextFu
 
     // Audit successful registration
     await audit.register(req, user.id, user.email, effectiveType);
+
+    // Emit plugin event
+    await emitEvent('auth.register', req, {
+      email: user.email,
+      userId: user.id,
+      userType: effectiveType,
+      roles: roleNames,
+    });
 
     res.status(201).json({
       data: {

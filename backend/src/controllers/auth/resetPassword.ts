@@ -5,6 +5,7 @@ import { hashPassword, validatePasswordStrength } from '../../utils/password';
 import { ResetPasswordRequest } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 export default async function resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -57,6 +58,10 @@ export default async function resetPassword(req: Request, res: Response, next: N
 
     // Audit password reset
     await audit.passwordReset(req, user.id);
+    await emitEvent('auth.password.reset', req, {
+      userId: user.id,
+      email: user.email,
+    });
 
     res.status(200).json({
       message: 'Password has been successfully reset',

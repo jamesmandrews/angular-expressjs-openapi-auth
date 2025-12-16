@@ -3,6 +3,7 @@ import { twoFactorStore } from '../../../models/twoFactorStore';
 import { backupCodeStore } from '../../../models/backupCodeStore';
 import { verifyTOTPCode } from '../../../utils/totp';
 import { ErrorResponse } from '../../../types/common.types';
+import { emitEvent } from '../../../utils/events';
 
 interface RegenerateBackupCodesBody {
   code: string;
@@ -53,6 +54,8 @@ export default async function regenerateBackupCodes(req: Request, res: Response,
 
     // Generate new backup codes (this deletes old ones)
     const backupCodes = await backupCodeStore.generateForUser(userId);
+
+    await emitEvent('auth.2fa.backup.regenerated', req, { userId });
 
     res.status(200).json({
       message: 'New backup codes have been generated. Previous codes are now invalid.',

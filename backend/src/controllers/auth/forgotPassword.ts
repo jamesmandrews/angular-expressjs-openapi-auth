@@ -5,6 +5,7 @@ import { ForgotPasswordRequest } from '../../types/auth.types';
 import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 const getResetUrl = (): string => {
   return process.env.PASSWORD_RESET_URL || 'http://localhost:3000/reset-password';
@@ -50,6 +51,10 @@ export default async function forgotPassword(req: Request, res: Response, next: 
 
     // Audit password reset request (even for non-existent emails for security monitoring)
     await audit.passwordResetRequest(req, email);
+    await emitEvent('auth.password.reset.request', req, {
+      email,
+      userId: user?.id,
+    });
 
     res.status(200).json({ message: successMessage });
   } catch (error) {

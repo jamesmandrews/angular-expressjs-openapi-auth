@@ -4,6 +4,7 @@ import { emailVerificationTokenStore } from '../../models/tokenStore';
 import { ErrorResponse } from '../../types/common.types';
 import { getEmailProvider } from '../../email';
 import logger from '../../utils/logger';
+import { emitEvent } from '../../utils/events';
 
 const getVerificationUrl = (): string => {
   return process.env.EMAIL_VERIFICATION_URL || 'http://localhost:4200/verify-email';
@@ -67,6 +68,11 @@ export default async function resendVerification(req: Request, res: Response, ne
     if (!result.success) {
       logger.error(`Failed to send verification email to ${user.email}`, { error: result.error });
     }
+
+    await emitEvent('auth.email.resend', req, {
+      userId: user.id,
+      email: user.email,
+    });
 
     res.status(200).json({
       message: 'Verification email sent. Please check your inbox.',

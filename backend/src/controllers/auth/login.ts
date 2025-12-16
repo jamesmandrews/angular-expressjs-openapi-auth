@@ -10,6 +10,7 @@ import { setRefreshTokenCookie, getClientIp, getUserAgent } from '../../utils/co
 import { LoginRequest, toUserPublic } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { audit } from '../../utils/auditLogger';
+import { emitEvent } from '../../utils/events';
 
 export default async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -19,6 +20,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
     const user = await userStore.getByEmail(email);
     if (!user) {
       await audit.loginFailure(req, email, 'user_not_found');
+      await emitEvent('auth.login.failed', req, { email, reason: 'user_not_found' });
       const errorResponse: ErrorResponse = {
         error: {
           code: 'INVALID_CREDENTIALS',
@@ -33,6 +35,7 @@ export default async function login(req: Request, res: Response, next: NextFunct
     const isValidPassword = await verifyPassword(password, user.passwordHash);
     if (!isValidPassword) {
       await audit.loginFailure(req, email, 'invalid_password');
+      await emitEvent('auth.login.failed', req, { email, reason: 'invalid_password' });
       const errorResponse: ErrorResponse = {
         error: {
           code: 'INVALID_CREDENTIALS',
@@ -57,6 +60,11 @@ export default async function login(req: Request, res: Response, next: NextFunct
 
       // Audit partial login (2FA required)
       await audit.loginSuccess(req, user.id, user.email);
+      await emitEvent('auth.login', req, {
+        email: user.email,
+        userId: user.id,
+        twoFactorRequired: true,
+      });
 
       res.status(200).json({
         data: {
@@ -92,6 +100,11 @@ export default async function login(req: Request, res: Response, next: NextFunct
 
     // Audit successful login
     await audit.loginSuccess(req, user.id, user.email);
+    await emitEvent('auth.login', req, {
+      email: user.email,
+      userId: user.id,
+      twoFactorRequired: false,
+    });
 
     res.status(200).json({
       data: {

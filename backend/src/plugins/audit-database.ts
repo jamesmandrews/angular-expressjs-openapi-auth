@@ -26,9 +26,9 @@
  * - auth.email.resend (just triggers email, not a security event)
  */
 
-import { Plugin, PluginContext, PluginResult, PluginEvent } from '../src/plugins/types';
-import { auditLogStore, CreateAuditLogParams } from '../src/models/auditLogStore';
-import logger from '../src/utils/logger';
+import { Plugin, PluginContext, PluginResult, PluginEvent } from '../plugin-system/types';
+import { auditLogStore, CreateAuditLogParams } from '../models/auditLogStore';
+import logger from '../utils/logger';
 
 type AuditAction =
   | 'auth.login'

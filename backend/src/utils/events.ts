@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { pluginManager, PluginEvent, EmitBlockingResult } from '../plugins';
+import { pluginManager, PluginEvent, EmitBlockingResult } from '../plugin-system';
 import { getClientIp, getUserAgent } from './cookies';
 
 /**
@@ -48,4 +48,4 @@ export async function emitBlockingEvent(
 }
 
 // Re-export types for convenience
-export { PluginEvent, EmitBlockingResult } from '../plugins';
+export { PluginEvent, EmitBlockingResult } from '../plugin-system';

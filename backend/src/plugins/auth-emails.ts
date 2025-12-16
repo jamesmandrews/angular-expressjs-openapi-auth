@@ -11,9 +11,9 @@
  * - auth.email.resend: Resends email verification link
  */
 
-import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
-import { getEmailProvider } from '../src/email';
-import logger from '../src/utils/logger';
+import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
+import { getEmailProvider } from '../email';
+import logger from '../utils/logger';
 
 const authEmails: Plugin = {
   name: 'auth-emails',

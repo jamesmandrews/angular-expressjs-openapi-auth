@@ -16,8 +16,8 @@
  *   - admin+1@company.org
  */
 
-import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
-import logger from '../src/utils/logger';
+import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
+import logger from '../utils/logger';
 
 /**
  * Regex to detect plus-addressing in emails

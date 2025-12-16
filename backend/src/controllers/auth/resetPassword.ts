@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { userStore } from '../../models/userStore';
 import { passwordResetTokenStore } from '../../models/tokenStore';
+import { refreshTokenStore } from '../../models/refreshTokenStore';
 import { hashPassword, validatePasswordStrength } from '../../utils/password';
+import { clearRefreshTokenCookie } from '../../utils/cookies';
 import { ResetPasswordRequest } from '../../types/auth.types';
 import { ErrorResponse } from '../../types/common.types';
 import { emitEvent } from '../../utils/events';
+import logger from '../../utils/logger';
 
 export default async function resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -51,6 +54,16 @@ export default async function resetPassword(req: Request, res: Response, next: N
       res.status(400).json(errorResponse);
       return;
     }
+
+    // Revoke all refresh tokens for this user (force re-login on all devices)
+    const revokedCount = await refreshTokenStore.revokeAllForUser(user.id);
+    logger.info(`Revoked ${revokedCount} refresh tokens after password reset for user ${user.id}`);
+
+    // Regenerate token salt to invalidate all existing access tokens immediately
+    await userStore.regenerateTokenSalt(user.id);
+
+    // Clear any refresh token cookie on this response
+    clearRefreshTokenCookie(res);
 
     // Mark token as used
     await passwordResetTokenStore.markUsed(token);

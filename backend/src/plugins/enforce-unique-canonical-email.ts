@@ -15,10 +15,10 @@
  *   DISABLED_PLUGINS=enforce-unique-canonical-email  (to keep disabled)
  */
 
-import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
-import { userStore } from '../src/models/userStore';
-import { canonicalizeEmail } from '../src/utils/email';
-import logger from '../src/utils/logger';
+import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
+import { userStore } from '../models/userStore';
+import { canonicalizeEmail } from '../utils/email';
+import logger from '../utils/logger';
 
 const enforceUniqueCanonicalEmail: Plugin = {
   name: 'enforce-unique-canonical-email',

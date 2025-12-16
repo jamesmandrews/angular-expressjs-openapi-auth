@@ -1,9 +1,10 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, filter, switchMap, take, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 let isRefreshing = false;
+const refreshTokenSubject = new BehaviorSubject<string | null>(null);
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -33,12 +34,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         !req.url.includes('/auth/register')
       ) {
         if (!isRefreshing) {
+          // First 401 - initiate refresh
           isRefreshing = true;
+          refreshTokenSubject.next(null);
 
           return authService.refreshToken().pipe(
             switchMap(() => {
               isRefreshing = false;
               const newToken = authService.getAccessToken();
+              refreshTokenSubject.next(newToken);
               const retryReq = req.clone({
                 withCredentials: true,
                 setHeaders: {
@@ -47,10 +51,26 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
               });
               return next(retryReq);
             }),
-            catchError((refreshError) => {
+            catchError((refreshError: unknown) => {
               isRefreshing = false;
+              refreshTokenSubject.next(null);
               // Don't call logout here - refreshToken already handles it
               return throwError(() => refreshError);
+            })
+          );
+        } else {
+          // Refresh already in progress - wait for it to complete
+          return refreshTokenSubject.pipe(
+            filter((newToken): newToken is string => newToken !== null),
+            take(1),
+            switchMap((newToken: string) => {
+              const retryReq = req.clone({
+                withCredentials: true,
+                setHeaders: {
+                  Authorization: `Bearer ${newToken}`,
+                },
+              });
+              return next(retryReq);
             })
           );
         }

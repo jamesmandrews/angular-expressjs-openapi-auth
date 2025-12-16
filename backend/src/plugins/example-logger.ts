@@ -6,7 +6,7 @@
  *
  * To disable this plugin, rename or delete this file.
  */
-import { Plugin, PluginContext, PluginResult } from '../src/plugins/types';
+import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
 
 const exampleLogger: Plugin = {
   name: 'example-logger',

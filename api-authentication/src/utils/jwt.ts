@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { JwtPayload } from '../types/auth.types';
+import { JwtPayload, OrganizationRole } from '../types/auth.types';
 
 const getJwtSecret = (): string => {
   const secret = process.env.JWT_SECRET;
@@ -28,6 +28,8 @@ export interface GenerateTokenOptions {
   twoFactorPending?: boolean;
   twoFactorVerified?: boolean;
   expiresIn?: number; // Override default expiry
+  organizationId?: string;
+  organizationRole?: OrganizationRole;
 }
 
 export function generateAccessToken(options: GenerateTokenOptions): string {
@@ -50,6 +52,14 @@ export function generateAccessToken(options: GenerateTokenOptions): string {
   }
   if (options.twoFactorVerified !== undefined) {
     payload.twoFactorVerified = options.twoFactorVerified;
+  }
+
+  // Add organization claims if present
+  if (options.organizationId) {
+    payload.organizationId = options.organizationId;
+  }
+  if (options.organizationRole) {
+    payload.organizationRole = options.organizationRole;
   }
 
   return jwt.sign(payload, getJwtSecret(), { expiresIn });

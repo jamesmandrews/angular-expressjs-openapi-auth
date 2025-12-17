@@ -1,7 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { PasswordRequirementsComponent } from '../../../shared/components/password-requirements/password-requirements.component';
@@ -13,13 +13,35 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
   template: `
     <div class="auth-container">
       <div class="auth-card">
-        <h1>Create Account</h1>
+        <h1>{{ isOrganizationRegistration ? 'Create Organization' : 'Create Account' }}</h1>
+
+        @if (isOrganizationRegistration) {
+          <p class="subtitle">Register and create your organization in one step</p>
+        }
 
         @if (errorMessage) {
           <div class="error-message">{{ errorMessage }}</div>
         }
 
         <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+          @if (isOrganizationRegistration) {
+            <div class="form-group">
+              <label for="organizationName">Organization Name <span class="required">*</span></label>
+              <input
+                type="text"
+                id="organizationName"
+                formControlName="organizationName"
+                placeholder="Enter your organization name"
+              />
+              @if (registerForm.get('organizationName')?.invalid && registerForm.get('organizationName')?.touched) {
+                <span class="field-error">Organization name is required (2-100 characters)</span>
+              }
+            </div>
+
+            <hr class="divider" />
+            <p class="section-label">Your Account Details</p>
+          }
+
           <div class="form-row">
             <div class="form-group">
               <label for="firstName">First Name</label>
@@ -43,7 +65,7 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
           </div>
 
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">Email <span class="required">*</span></label>
             <input
               type="email"
               id="email"
@@ -56,7 +78,7 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
           </div>
 
           <div class="form-group">
-            <label for="password">Password</label>
+            <label for="password">Password <span class="required">*</span></label>
             <input
               type="password"
               id="password"
@@ -67,7 +89,7 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
           </div>
 
           <div class="form-group">
-            <label for="confirmPassword">Confirm Password</label>
+            <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
             <input
               type="password"
               id="confirmPassword"
@@ -82,15 +104,18 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
           <button type="submit" [disabled]="registerForm.invalid || isLoading">
             @if (isLoading) {
               <app-spinner [light]="true" [size]="16"></app-spinner>
-              <span>Creating account...</span>
+              <span>{{ isOrganizationRegistration ? 'Creating organization...' : 'Creating account...' }}</span>
             } @else {
-              Create Account
+              {{ isOrganizationRegistration ? 'Create Organization' : 'Create Account' }}
             }
           </button>
         </form>
 
         <div class="auth-links">
           <a routerLink="/login">Already have an account? Login</a>
+          @if (isOrganizationRegistration) {
+            <a routerLink="/register">Register as an individual instead</a>
+          }
         </div>
       </div>
     </div>
@@ -115,9 +140,31 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
     }
 
     h1 {
-      margin: 0 0 24px;
+      margin: 0 0 8px;
       text-align: center;
       color: #333;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin: 0 0 24px;
+    }
+
+    .section-label {
+      color: #555;
+      font-weight: 500;
+      margin: 0 0 16px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 24px 0 16px;
+    }
+
+    .required {
+      color: #c00;
     }
 
     .form-row {
@@ -197,6 +244,9 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
     .auth-links {
       margin-top: 20px;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .auth-links a {
@@ -209,28 +259,47 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
     }
   `],
 })
-export class RegisterComponent {
-  registerForm: FormGroup;
+export class RegisterComponent implements OnInit {
+  registerForm!: FormGroup;
   isLoading = false;
   errorMessage = '';
+  isOrganizationRegistration = false;
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
-  ) {
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
+
+  ngOnInit(): void {
+    // Check if this is an organization registration
+    this.route.queryParams.subscribe(params => {
+      this.isOrganizationRegistration = params['type'] === 'organization';
+      this.initForm();
+    });
+  }
+
+  private initForm(): void {
+    const formConfig: Record<string, unknown[]> = {
+      firstName: [''],
+      lastName: [''],
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [
+        Validators.required,
+        Validators.minLength(16),
+        Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+      ]],
+      confirmPassword: ['', Validators.required],
+    };
+
+    // Add organizationName field for organization registration
+    if (this.isOrganizationRegistration) {
+      formConfig['organizationName'] = ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]];
+    }
+
     this.registerForm = this.fb.group(
-      {
-        firstName: [''],
-        lastName: [''],
-        email: ['', [Validators.required, Validators.email]],
-        password: ['', [
-          Validators.required,
-          Validators.minLength(16),
-          Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
-        ]],
-        confirmPassword: ['', Validators.required],
-      },
+      formConfig,
       { validators: this.passwordMatchValidator }
     );
   }

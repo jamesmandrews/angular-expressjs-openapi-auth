@@ -26,7 +26,14 @@ export type PluginEvent =
   | 'auth.2fa.backup.used'
   | 'auth.2fa.backup.regenerated'
   // Profile events
-  | 'user.profile.updated';
+  | 'user.profile.updated'
+  // Organization events
+  | 'org.created'
+  | 'org.updated'
+  | 'org.member.invited'
+  | 'org.member.joined'
+  | 'org.member.updated'
+  | 'org.member.removed';
 
 /**
  * Context passed to plugin handlers
@@ -106,4 +113,10 @@ export const ALL_PLUGIN_EVENTS: PluginEvent[] = [
   'auth.2fa.backup.used',
   'auth.2fa.backup.regenerated',
   'user.profile.updated',
+  'org.created',
+  'org.updated',
+  'org.member.invited',
+  'org.member.joined',
+  'org.member.updated',
+  'org.member.removed',
 ];

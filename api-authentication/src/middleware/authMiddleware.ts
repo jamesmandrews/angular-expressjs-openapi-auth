@@ -4,6 +4,8 @@ import { AuthProvider } from '../auth/authProvider';
 import { ErrorResponse } from '../types/common.types';
 import { resolveOpenApiPath } from '../utils/paths';
 
+import { OrganizationRole } from '../types/auth.types';
+
 // Extend Express Request to include user info
 declare global {
   namespace Express {
@@ -16,6 +18,8 @@ declare global {
         twoFactorPending?: boolean;
         twoFactorVerified?: boolean;
         emailVerified?: boolean;
+        organizationId?: string;
+        organizationRole?: OrganizationRole;
       };
     }
   }

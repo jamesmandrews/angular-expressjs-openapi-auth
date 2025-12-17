@@ -276,6 +276,65 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash)
   `);
 
+  // Create organizations table
+  await query(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      id VARCHAR(22) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      slug VARCHAR(100) UNIQUE NOT NULL,
+      owner_id VARCHAR(22) NOT NULL REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create indexes for organizations lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_organizations_owner_id ON organizations(owner_id)
+  `);
+
+  // Add organization columns to users table
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id VARCHAR(22) REFERENCES organizations(id)
+  `);
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_role VARCHAR(20)
+  `);
+
+  // Create index for users organization lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id)
+  `);
+
+  // Create organization_invites table
+  await query(`
+    CREATE TABLE IF NOT EXISTS organization_invites (
+      id VARCHAR(22) PRIMARY KEY,
+      organization_id VARCHAR(22) NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      email VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'member',
+      token_hash VARCHAR(64) NOT NULL,
+      invited_by VARCHAR(22) NOT NULL REFERENCES users(id),
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      accepted_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create indexes for organization_invites lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_organization_invites_organization_id ON organization_invites(organization_id)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_organization_invites_email ON organization_invites(email)
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_organization_invites_token_hash ON organization_invites(token_hash)
+  `);
+
   // Seed default roles if they don't exist
   await seedDefaultRoles();
 
@@ -313,6 +372,13 @@ const SCOPE_IDS = {
   ADMIN_ROLES: '0000000000000000000107',
   ADMIN_SCOPES: '0000000000000000000108',
   ADMIN_READ: '0000000000000000000109',
+  // Organization scopes
+  ORG_READ: '0000000000000000000201',
+  ORG_WRITE: '0000000000000000000202',
+  ORG_MEMBERS_READ: '0000000000000000000203',
+  ORG_MEMBERS_WRITE: '0000000000000000000204',
+  ORG_INVITES_READ: '0000000000000000000205',
+  ORG_INVITES_WRITE: '0000000000000000000206',
 } as const;
 
 // Role IDs for reference
@@ -333,6 +399,13 @@ async function seedDefaultScopes(): Promise<void> {
     { id: SCOPE_IDS.ADMIN_ROLES, name: 'admin:roles', description: 'Role management' },
     { id: SCOPE_IDS.ADMIN_SCOPES, name: 'admin:scopes', description: 'Scope management' },
     { id: SCOPE_IDS.ADMIN_READ, name: 'admin:read', description: 'Read admin data (audit logs, etc.)' },
+    // Organization scopes
+    { id: SCOPE_IDS.ORG_READ, name: 'org:read', description: 'Read organization details' },
+    { id: SCOPE_IDS.ORG_WRITE, name: 'org:write', description: 'Update organization details' },
+    { id: SCOPE_IDS.ORG_MEMBERS_READ, name: 'org:members:read', description: 'View organization members' },
+    { id: SCOPE_IDS.ORG_MEMBERS_WRITE, name: 'org:members:write', description: 'Manage organization members' },
+    { id: SCOPE_IDS.ORG_INVITES_READ, name: 'org:invites:read', description: 'View organization invites' },
+    { id: SCOPE_IDS.ORG_INVITES_WRITE, name: 'org:invites:write', description: 'Manage organization invites' },
   ];
 
   // Insert scopes

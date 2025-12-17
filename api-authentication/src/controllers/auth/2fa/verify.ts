@@ -116,7 +116,7 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(userId);
 
-    // Generate full access token (not 2FA pending)
+    // Generate full access token (not 2FA pending) with org info
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
@@ -124,6 +124,8 @@ export default async function verify2FA(req: Request, res: Response, next: NextF
       scopes: userScopes,
       jti: user.tokenSalt || undefined,
       twoFactorVerified: true,
+      organizationId: user.organizationId,
+      organizationRole: user.organizationRole,
     });
 
     // Create refresh token and set in HttpOnly cookie

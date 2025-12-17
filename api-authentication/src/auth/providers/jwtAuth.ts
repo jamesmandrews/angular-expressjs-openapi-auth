@@ -69,6 +69,8 @@ export class JwtAuthProvider implements AuthProvider {
         twoFactorPending: decoded.twoFactorPending,
         twoFactorVerified: decoded.twoFactorVerified,
         emailVerified: user.emailVerified,
+        organizationId: decoded.organizationId,
+        organizationRole: decoded.organizationRole,
       },
     };
   }

@@ -43,3 +43,7 @@ api-authentication/coverage/
 
 # Proposals (drafts)
 proposals/
+
+# codex generated security reports we'll fix before
+# committing to branch
+security_reports/

@@ -71,13 +71,15 @@ export default async function refresh(req: Request, res: Response, next: NextFun
     const roleNames = userRoles.map(r => r.name);
     const userScopes = await scopeStore.getUserScopes(result.userId);
 
-    // Generate new access token with fresh roles and scopes
+    // Generate new access token with fresh roles, scopes, and org info
     const token = generateAccessToken({
       userId: user.id,
       email: user.email,
       roles: roleNames,
       scopes: userScopes,
       jti: user.tokenSalt || undefined,
+      organizationId: user.organizationId,
+      organizationRole: user.organizationRole,
     });
     const expiresIn = parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRY || '900', 10);
 

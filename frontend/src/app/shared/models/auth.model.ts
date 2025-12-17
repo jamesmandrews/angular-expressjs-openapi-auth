@@ -1,3 +1,5 @@
+export type OrganizationRole = 'owner' | 'admin' | 'member';
+
 export interface User {
   id: string;
   email: string;
@@ -8,6 +10,8 @@ export interface User {
   twoFactorEnabled: boolean;
   roles: string[];
   scopes: string[];
+  organizationId?: string;
+  organizationRole?: OrganizationRole;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +43,7 @@ export interface RegisterRequest {
   firstName?: string;
   lastName?: string;
   userType?: string;
+  organizationName?: string;
 }
 
 export interface RegisterResponse {

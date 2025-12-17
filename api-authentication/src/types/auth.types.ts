@@ -1,3 +1,5 @@
+export type OrganizationRole = 'owner' | 'admin' | 'member';
+
 export interface User {
   id: string;
   email: string;
@@ -6,6 +8,8 @@ export interface User {
   lastName?: string;
   emailVerified: boolean;
   tokenSalt: string | null;
+  organizationId?: string;
+  organizationRole?: OrganizationRole;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +23,8 @@ export interface UserPublic {
   twoFactorEnabled: boolean;
   roles: string[];
   scopes: string[];
+  organizationId?: string;
+  organizationRole?: OrganizationRole;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +35,7 @@ export interface RegisterRequest {
   firstName?: string;
   lastName?: string;
   userType?: string;
+  organizationName?: string;
 }
 
 export interface LoginRequest {
@@ -75,6 +82,8 @@ export interface JwtPayload {
   jti?: string; // JWT ID - token salt for instant invalidation
   twoFactorPending?: boolean; // True if 2FA verification is required
   twoFactorVerified?: boolean; // True if 2FA was verified this session
+  organizationId?: string; // Organization ID if user belongs to an org
+  organizationRole?: OrganizationRole; // User's role within the organization
 }
 
 export function toUserPublic(
@@ -92,6 +101,8 @@ export function toUserPublic(
     twoFactorEnabled,
     roles,
     scopes,
+    organizationId: user.organizationId,
+    organizationRole: user.organizationRole,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

@@ -1,5 +1,5 @@
 import { query, queryOne } from '../db/connection';
-import { User, RegisterRequest } from '../types/auth.types';
+import { User, RegisterRequest, OrganizationRole } from '../types/auth.types';
 import { generateShortId } from '../utils/shortId';
 import { canonicalizeEmail } from '../utils/email';
 
@@ -12,6 +12,8 @@ interface UserRow {
   last_name: string | null;
   email_verified: boolean;
   token_salt: string | null;
+  organization_id: string | null;
+  organization_role: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -25,6 +27,8 @@ function rowToUser(row: UserRow): User {
     lastName: row.last_name || undefined,
     emailVerified: row.email_verified,
     tokenSalt: row.token_salt,
+    organizationId: row.organization_id || undefined,
+    organizationRole: (row.organization_role as OrganizationRole) || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

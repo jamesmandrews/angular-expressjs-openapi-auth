@@ -9,16 +9,21 @@
  * - auth.register: Sends email verification link
  * - auth.password.reset.request: Sends password reset link
  * - auth.email.resend: Resends email verification link
+ * - org.member.invited: Sends organization invitation link
  */
 
 import { Plugin, PluginContext, PluginResult } from '../plugin-system/types';
 import { getEmailProvider } from '../email';
 import logger from '../utils/logger';
 
+const getOrgInviteUrl = (): string => {
+  return process.env.ORG_INVITE_URL || 'http://localhost:4200/accept-invite';
+};
+
 const authEmails: Plugin = {
   name: 'auth-emails',
   version: '1.0.0',
-  events: ['auth.register', 'auth.password.reset.request', 'auth.email.resend'],
+  events: ['auth.register', 'auth.password.reset.request', 'auth.email.resend', 'org.member.invited'],
   mode: 'async',
 
   async handle(ctx: PluginContext): Promise<PluginResult> {
@@ -112,6 +117,44 @@ const authEmails: Plugin = {
         }
 
         logger.info(`[auth-emails] Verification email resent to ${email}`);
+        return { success: true };
+      }
+
+      case 'org.member.invited': {
+        const { email, inviteToken, role } = ctx.data as {
+          email: string;
+          inviteToken: string;
+          role: string;
+        };
+
+        if (!email || !inviteToken) {
+          logger.warn('[auth-emails] Missing email or inviteToken for org.member.invited event');
+          return { success: false, error: 'Missing required data' };
+        }
+
+        const inviteUrl = `${getOrgInviteUrl()}?token=${inviteToken}`;
+        const roleDisplay = role === 'admin' ? 'an admin' : 'a member';
+
+        const result = await emailProvider.send({
+          to: email,
+          subject: 'You\'ve Been Invited to Join an Organization',
+          text: `You've been invited to join an organization as ${roleDisplay}.\n\nClick the link below to accept the invitation:\n\n${inviteUrl}\n\nThis invitation will expire in 7 days.\n\nIf you did not expect this invitation, you can safely ignore this email.`,
+          html: `
+            <h2>Organization Invitation</h2>
+            <p>You've been invited to join an organization as ${roleDisplay}.</p>
+            <p>Click the link below to accept the invitation:</p>
+            <p><a href="${inviteUrl}">Accept Invitation</a></p>
+            <p>This invitation will expire in 7 days.</p>
+            <p>If you did not expect this invitation, you can safely ignore this email.</p>
+          `,
+        });
+
+        if (!result.success) {
+          logger.error(`[auth-emails] Failed to send organization invite email to ${email}`, { error: result.error });
+          return { success: false, error: result.error };
+        }
+
+        logger.info(`[auth-emails] Organization invite email sent to ${email}`);
         return { success: true };
       }
 

@@ -116,6 +116,8 @@ import { environment } from '../../../../environments/environment';
           <a routerLink="/login">Already have an account? Login</a>
           @if (isOrganizationRegistration && !organizationsOnlyEnabled) {
             <a routerLink="/register">Register as an individual instead</a>
+          } @else if (!isOrganizationRegistration && organizationsEnabled) {
+            <a [routerLink]="['/register']" [queryParams]="{ type: 'organization' }">Register an organization instead</a>
           }
         </div>
       </div>

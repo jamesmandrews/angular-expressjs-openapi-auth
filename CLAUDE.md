@@ -13,8 +13,9 @@ This is a **monorepo** containing an Angular 19 frontend and Express.js authenti
 │   │   ├── app.ts              # Express app factory (createApp())
 │   │   ├── server.ts           # Development server (not used in production)
 │   │   ├── controllers/        # OpenAPI operation handlers
-│   │   │   └── auth/           # Authentication controllers (including 2fa/)
-│   │   ├── middleware/         # Auth, security, error handling
+│   │   │   ├── auth/           # Authentication controllers (including 2fa/)
+│   │   │   └── org/            # Organization controllers (invites/, members/)
+│   │   ├── middleware/         # Auth, security, error handling (including org/)
 │   │   ├── auth/               # Pluggable auth providers
 │   │   ├── db/                 # Database connection and schema
 │   │   ├── email/              # Pluggable email providers
@@ -99,7 +100,7 @@ POSTGRES_DB=authdb
 
 Tables are auto-created on server startup (`api-authentication/src/db/schema.ts`):
 
-- **users** - User accounts with email, password hash, profile info
+- **users** - User accounts with email, password hash, profile info, organization membership
 - **password_reset_tokens** - Hashed tokens for forgot-password flow (SHA256)
 - **email_verification_tokens** - Hashed tokens for email verification (SHA256)
 - **refresh_tokens** - Refresh tokens with rotation and reuse detection
@@ -107,6 +108,8 @@ Tables are auto-created on server startup (`api-authentication/src/db/schema.ts`
 - **user_roles** - Role assignments for users
 - **backup_codes** - 2FA backup codes for account recovery
 - **audit_logs** - Security event audit logging
+- **organizations** - Organizations with name, slug, owner
+- **organization_invites** - Pending invitations with hashed tokens
 
 ### User IDs
 
@@ -144,6 +147,21 @@ User IDs use **short IDs** (22-character base62 strings) instead of UUIDs:
 | POST | `/auth/2fa/disable` | Yes | Disable 2FA (requires password + TOTP) |
 | GET | `/auth/2fa/backup-codes` | Yes | Get remaining backup code count |
 | POST | `/auth/2fa/backup-codes/regenerate` | Yes | Generate new backup codes |
+
+### Organizations (`/api/v1/org/*`) - when ORGANIZATIONS_ENABLED=true
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/org` | Yes | Get current user's organization |
+| PATCH | `/org` | Owner/Admin | Update organization name |
+| POST | `/org/invites` | Owner/Admin | Send member invitation |
+| GET | `/org/invites` | Owner/Admin | List pending invites |
+| DELETE | `/org/invites/:id` | Owner/Admin | Revoke invitation |
+| POST | `/org/invites/accept` | Yes | Accept invitation (token in body) |
+| GET | `/org/members` | Yes | List organization members |
+| PATCH | `/org/members/:userId` | Owner/Admin | Update member role |
+| DELETE | `/org/members/:userId` | Owner/Admin | Remove member |
+| POST | `/org/leave` | Yes | Leave organization (not owner) |
 
 ### Health (`/api/v1/health`)
 
@@ -310,6 +328,8 @@ Development (`environment.ts`):
 export const environment = {
   production: false,
   apiUrl: '/api/v1',  // Proxied to backend
+  organizationsEnabled: true,      // Enable optional org registration
+  organizationsOnlyEnabled: false, // Force org registration for all users
 };
 ```
 
@@ -318,8 +338,17 @@ Production (`environment.production.ts`):
 export const environment = {
   production: true,
   apiUrl: '/api/v1',  // Same origin
+  organizationsEnabled: false,
+  organizationsOnlyEnabled: false,
 };
 ```
+
+**Organization Mode Behavior:**
+| `organizationsEnabled` | `organizationsOnlyEnabled` | Effect |
+|------------------------|---------------------------|--------|
+| `false` | `false` | Individual accounts only |
+| `true` | `false` | Both options on home page |
+| any | `true` | Org required for all registrations |
 
 ## Testing Endpoints
 
@@ -414,3 +443,6 @@ See `api-authentication/.env.example` for all configuration options:
 | `TOTP_WINDOW` | 2 | Accept codes ±2 time steps (60 sec) |
 | `AUDIT_LOG_ENABLED` | true | Enable audit logging |
 | `AUDIT_LOG_RETENTION_DAYS` | 90 | Days to keep audit logs |
+| `ORGANIZATIONS_ENABLED` | false | Enable organization feature |
+| `ORG_INVITE_EXPIRY_HOURS` | 168 | Invite expiration (7 days) |
+| `ORG_INVITE_URL` | localhost:4200/accept-invite | Frontend invite acceptance URL |

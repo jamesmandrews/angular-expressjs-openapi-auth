@@ -34,6 +34,15 @@ An OpenAPI first full-stack authentication application with an Angular 19 fronte
 - Multiple user types (configurable)
 - Audit logging for security events
 
+### Organizations (Optional)
+- Create organizations during registration
+- Invite-only membership with email invitations
+- Role hierarchy: Owner > Admin > Member
+- Single organization per user
+- Configurable via environment flags:
+  - `ORGANIZATIONS_ENABLED` - Enable optional org registration
+  - `organizationsOnlyEnabled` - Force org registration for all users
+
 ### Plugin System
 - Event-driven architecture with 18 hook points
 - Sync plugins can block operations (e.g., block registration)
@@ -218,6 +227,21 @@ Open http://localhost:4200 in your browser.
 | POST | `/api/v1/auth/2fa/disable` | Yes | Disable 2FA |
 | POST | `/api/v1/auth/2fa/backup-codes/regenerate` | Yes | New backup codes |
 
+### Organizations (when enabled)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/org` | Yes | Get current organization |
+| PATCH | `/api/v1/org` | Owner/Admin | Update organization name |
+| POST | `/api/v1/org/invites` | Owner/Admin | Send member invitation |
+| GET | `/api/v1/org/invites` | Owner/Admin | List pending invites |
+| DELETE | `/api/v1/org/invites/:id` | Owner/Admin | Revoke invitation |
+| POST | `/api/v1/org/invites/accept` | Yes | Accept invitation |
+| GET | `/api/v1/org/members` | Yes | List organization members |
+| PATCH | `/api/v1/org/members/:userId` | Owner/Admin | Update member role |
+| DELETE | `/api/v1/org/members/:userId` | Owner/Admin | Remove member |
+| POST | `/api/v1/org/leave` | Yes | Leave organization |
+
 ### Health
 
 | Method | Endpoint | Description |
@@ -240,6 +264,9 @@ See `api-authentication/.env.example` for all options. Key variables:
 | `EMAIL_PROVIDER` | stub | Email provider (stub/smtp) |
 | `TOTP_ISSUER` | MyApp | Name in authenticator apps |
 | `DISABLED_PLUGINS` | - | Comma-separated plugin names to disable |
+| `ORGANIZATIONS_ENABLED` | false | Enable organization feature |
+| `ORG_INVITE_EXPIRY_HOURS` | 168 | Invite link expiration (7 days) |
+| `ORG_INVITE_URL` | - | Frontend URL for invite acceptance |
 
 ### Email Configuration
 
@@ -259,8 +286,10 @@ SMTP_FROM=noreply@example.com
 
 | Route | Description | Guard |
 |-------|-------------|-------|
+| `/` | Home page | Guest only |
 | `/login` | Login page | Guest only |
 | `/register` | Registration | Guest only |
+| `/register?type=organization` | Org registration | Guest only (if enabled) |
 | `/verify-email` | Email verification | - |
 | `/verify-email-pending` | Pending verification | Unverified users |
 | `/2fa-verify` | 2FA code entry | 2FA pending |
@@ -268,6 +297,25 @@ SMTP_FROM=noreply@example.com
 | `/account/profile` | Profile settings | Verified users |
 | `/account/password` | Change password | Verified users |
 | `/account/2fa` | 2FA management | Verified users |
+
+### Frontend Organization Configuration
+
+Configure in `frontend/src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: '/api/v1',
+  organizationsEnabled: true,      // Show optional org registration
+  organizationsOnlyEnabled: false, // Force org registration for all users
+};
+```
+
+| Flag | Effect |
+|------|--------|
+| Both `false` | Individual accounts only |
+| `organizationsEnabled: true` | Both individual and org options on home page |
+| `organizationsOnlyEnabled: true` | Org required for all registrations |
 
 ## Architecture Highlights
 
@@ -359,6 +407,16 @@ Plugins can subscribe to any of these 18 events:
 | Event | Description | Can Block |
 |-------|-------------|-----------|
 | `user.profile.updated` | Profile info changed | No |
+
+**Organization Events:**
+| Event | Description | Can Block |
+|-------|-------------|-----------|
+| `org.created` | Organization created | No |
+| `org.updated` | Organization name changed | No |
+| `org.member.invited` | Member invitation sent | No |
+| `org.member.joined` | User accepted invitation | No |
+| `org.member.updated` | Member role changed | No |
+| `org.member.removed` | Member removed or left | No |
 
 ### Creating a Plugin
 

@@ -11,22 +11,11 @@ import { environment } from '../../../environments/environment';
     <div class="home-container">
       <div class="home-content">
         <h1>Welcome</h1>
-        <p class="subtitle">Choose how you'd like to get started</p>
+        <p class="subtitle">{{ organizationsOnlyEnabled ? 'Create your organization to get started' : 'Choose how you\\'d like to get started' }}</p>
 
         <div class="options">
-          <div class="option-card">
-            <div class="option-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
-            <h2>Individual Account</h2>
-            <p>Create a personal account for yourself</p>
-            <a routerLink="/register" class="btn btn-primary">Create Account</a>
-          </div>
-
-          @if (organizationsEnabled) {
+          @if (organizationsOnlyEnabled) {
+            <!-- Organizations only mode: single card for org registration -->
             <div class="option-card">
               <div class="option-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -36,10 +25,40 @@ import { environment } from '../../../environments/environment';
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </div>
-              <h2>Organization</h2>
-              <p>Create an organization and invite team members</p>
-              <a [routerLink]="['/register']" [queryParams]="{ type: 'organization' }" class="btn btn-primary">Create Organization</a>
+              <h2>Create Organization</h2>
+              <p>Register and create your organization to get started</p>
+              <a routerLink="/register" class="btn btn-primary">Get Started</a>
             </div>
+          } @else {
+            <!-- Standard mode: individual account option -->
+            <div class="option-card">
+              <div class="option-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <h2>Individual Account</h2>
+              <p>Create a personal account for yourself</p>
+              <a routerLink="/register" class="btn btn-primary">Create Account</a>
+            </div>
+
+            @if (organizationsEnabled) {
+              <!-- Optional organization registration -->
+              <div class="option-card">
+                <div class="option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                </div>
+                <h2>Organization</h2>
+                <p>Create an organization and invite team members</p>
+                <a [routerLink]="['/register']" [queryParams]="{ type: 'organization' }" class="btn btn-primary">Create Organization</a>
+              </div>
+            }
           }
         </div>
 
@@ -181,4 +200,5 @@ import { environment } from '../../../environments/environment';
 })
 export class HomeComponent {
   organizationsEnabled = environment.organizationsEnabled;
+  organizationsOnlyEnabled = environment.organizationsOnlyEnabled;
 }

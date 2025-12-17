@@ -5,6 +5,7 @@ import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { PasswordRequirementsComponent } from '../../../shared/components/password-requirements/password-requirements.component';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -113,7 +114,7 @@ import { PasswordRequirementsComponent } from '../../../shared/components/passwo
 
         <div class="auth-links">
           <a routerLink="/login">Already have an account? Login</a>
-          @if (isOrganizationRegistration) {
+          @if (isOrganizationRegistration && !organizationsOnlyEnabled) {
             <a routerLink="/register">Register as an individual instead</a>
           }
         </div>
@@ -264,6 +265,8 @@ export class RegisterComponent implements OnInit {
   isLoading = false;
   errorMessage = '';
   isOrganizationRegistration = false;
+  organizationsEnabled = environment.organizationsEnabled;
+  organizationsOnlyEnabled = environment.organizationsOnlyEnabled;
 
   constructor(
     private fb: FormBuilder,
@@ -274,10 +277,24 @@ export class RegisterComponent implements OnInit {
 
   ngOnInit(): void {
     // Check if this is an organization registration
-    this.route.queryParams.subscribe(params => {
-      this.isOrganizationRegistration = params['type'] === 'organization';
+    // organizationsOnlyEnabled forces org registration for all users
+    if (this.organizationsOnlyEnabled) {
+      this.isOrganizationRegistration = true;
       this.initForm();
-    });
+    } else {
+      this.route.queryParams.subscribe(params => {
+        const requestingOrgRegistration = params['type'] === 'organization';
+
+        // Redirect to homepage if trying to access org registration when disabled
+        if (requestingOrgRegistration && !this.organizationsEnabled) {
+          this.router.navigate(['/']);
+          return;
+        }
+
+        this.isOrganizationRegistration = requestingOrgRegistration;
+        this.initForm();
+      });
+    }
   }
 
   private initForm(): void {

@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
   apiUrl: '/api/v1', // Use relative URL to go through Angular proxy
-  organizationsEnabled: true, // Enable organization registration
+  organizationsEnabled: true, // Enable optional organization registration
+  organizationsOnlyEnabled: false, // Force organization registration for all users
 };
